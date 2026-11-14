@@ -1,47 +1,36 @@
-<!--VITE PLUS START-->
+# Keyrift
 
-# Using Vite+, the Unified Toolchain for the Web
+Keyboard remapper for Linux/X11: a Rust engine (daemon + CLI) and, later, an Electron GUI.
+Specs live in `docs/` (start with `docs/03-project-specification.md`). Phase 1 (milestones M0–M3)
+is Rust only.
 
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
-
-Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
-
-## Built-in Commands vs Scripts
-
-`vp <name>` runs a built-in command. `vp run <name>` runs a `package.json` script or a `vite.config.ts` task. Scripts cannot overwrite built-ins, so `vp dev` and `vp run dev` may do different things. Check `package.json` and `vite.config.ts` first, and run `vp run <name>` when the project defines a script or task with that name.
-
-## Running Scripts
-
-Run TypeScript and JavaScript files with `vpx <file>`, for example `vpx ./scripts/seed.ts --dry-run`. It handles enums, decorators, JSX, and tsconfig `paths`, so do not add `tsx` or `ts-node` to run scripts. `vpx --watch <file>` reruns the file when a file it uses changes, in place of `tsx watch`. `vp node <file>` runs plain Node.js.
-
-## Tool Versions
-
-Run `vp toolchain` to show versions and relationships in the active Vite+
-release. Add a tool name to select part of the graph. For example, run
-`vp toolchain vite`. Use `--global` to ignore the local `vite-plus` package. Use
-`vp why <package>` to show the package-manager dependency graph.
-
-## Review Checklist
-
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
-- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
-- [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
-
-<!--VITE PLUS END-->
-
-# Rust engine (Cargo workspace)
-
-Phase 1 (milestones M0–M3) is Rust only; see `docs/03-project-specification.md`.
+# Rust (Cargo workspace)
 
 - Crates: `crates/core` (pure remapping logic, no I/O), `crates/config` (config types + JSON Schema),
   `crates/engine` (daemon: evdev, uinput, hot-plug, IPC), `crates/cli` (the `keyrift` binary).
-- Toolchain is pinned in `rust-toolchain.toml`; lints are configured in the root `Cargo.toml`
-  (`[workspace.lints]`) and `clippy.toml`; formatting in `rustfmt.toml`.
+- Toolchain is pinned in `rust-toolchain.toml`; lints in the root `Cargo.toml` (`[workspace.lints]`)
+  and `clippy.toml`; formatting in `rustfmt.toml`; dependency policy in `deny.toml`.
 
-## Review Checklist (Rust)
+## Verify after every Rust change
 
-- [ ] `cargo fmt --all` (check only: `cargo fmt-check`)
-- [ ] `cargo lint` (clippy, warnings are errors)
-- [ ] `cargo test --workspace`
-- [ ] `cargo deny check` after adding or updating dependencies
+Run all of these and fix every failure before considering the change done:
+
+1. `cargo build --workspace --all-targets` – builds
+2. `cargo fmt --all` – formats (CI-style check: `cargo fmt-check`)
+3. `cargo lint` – clippy on all targets, warnings are errors
+4. `cargo test --workspace` – tests pass
+5. `cargo deny check` – only when dependencies were added or updated
+
+# TypeScript / Vite+
+
+The TS side uses Vite+ (`vp`), a single CLI wrapping Vite, Vitest, Oxlint and Oxfmt.
+
+- `vp <name>` runs a built-in command; `vp run <name>` runs a `package.json` script or `vite.config.ts` task.
+- Run TS/JS scripts with `vpx <file>` (no `tsx`/`ts-node`).
+- Docs: `node_modules/vite-plus/docs` or https://viteplus.dev/guide/.
+
+## Verify after every TS or docs change
+
+1. `vp install` – after pulling changes
+2. `vp check` – format, lint, type check (also formats Markdown; `vp check --fix` to apply)
+3. `vp test` – tests
