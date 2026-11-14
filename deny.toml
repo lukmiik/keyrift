@@ -1,0 +1,38 @@
+# cargo-deny: checks dependencies for security advisories, licenses and duplicates.
+# Run with `cargo deny check`.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+# Permissive licenses compatible with distributing Keyrift binaries.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+]
+confidence-threshold = 0.9
+
+[licenses.private]
+# Our own crates are unpublished and have no license field yet.
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Internal path dependencies have no version; allowed because no crate is published.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

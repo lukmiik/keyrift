@@ -1,0 +1,5 @@
+# Short aliases so local checks match what CI/agents run.
+[alias]
+lint = "clippy --workspace --all-targets --locked -- -D warnings"
+fmt-check = "fmt --all -- --check"
+check-all = "check --workspace --all-targets --locked"

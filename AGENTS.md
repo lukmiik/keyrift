@@ -29,3 +29,19 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+# Rust engine (Cargo workspace)
+
+Phase 1 (milestones M0–M3) is Rust only; see `docs/03-project-specification.md`.
+
+- Crates: `crates/core` (pure remapping logic, no I/O), `crates/config` (config types + JSON Schema),
+  `crates/engine` (daemon: evdev, uinput, hot-plug, IPC), `crates/cli` (the `keyrift` binary).
+- Toolchain is pinned in `rust-toolchain.toml`; lints are configured in the root `Cargo.toml`
+  (`[workspace.lints]`) and `clippy.toml`; formatting in `rustfmt.toml`.
+
+## Review Checklist (Rust)
+
+- [ ] `cargo fmt --all` (check only: `cargo fmt-check`)
+- [ ] `cargo lint` (clippy, warnings are errors)
+- [ ] `cargo test --workspace`
+- [ ] `cargo deny check` after adding or updating dependencies

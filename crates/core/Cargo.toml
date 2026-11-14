@@ -1,0 +1,13 @@
+[package]
+name = "keyrift-core"
+description = "Pure remapping logic: layers, tap-hold, macros (no I/O, injected clock)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+
+[lints]
+workspace = true

@@ -1,0 +1,5 @@
+# Pin the toolchain so formatting and lint results are the same on every machine.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]
+profile = "minimal"

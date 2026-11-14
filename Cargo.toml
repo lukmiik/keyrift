@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+# Internal crates, referenced by path from the member crates.
+[workspace.dependencies]
+keyrift-core = { path = "crates/core" }
+keyrift-config = { path = "crates/config" }
+keyrift-engine = { path = "crates/engine" }
+
+[workspace.lints.rust]
+# The engine talks to the kernel only through the `evdev` crate; our own code stays safe.
+unsafe_code = "deny"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Pedantic lints that are noisy without adding much for an application.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+# A panicking daemon leaves the user without remapping; prefer explicit error handling.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
