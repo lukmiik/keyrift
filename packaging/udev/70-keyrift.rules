@@ -1,0 +1,4 @@
+# Keyrift (spec §9.2): let members of the `uinput` group create the virtual keyboard and members
+# of the `input` group read and grab keyboards, so the engine never needs root.
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="uinput", MODE="0660", OPTIONS+="static_node=uinput"
+SUBSYSTEM=="input", KERNEL=="event*", GROUP="input", MODE="0660"
