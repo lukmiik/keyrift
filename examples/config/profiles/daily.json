@@ -1,0 +1,170 @@
+{
+  "$schema": "../schema/profile.v1.json",
+  "version": 1,
+  "name": "Daily",
+  "layers": [
+    {
+      "id": "base",
+      "name": "Base",
+      "keys": {
+        "KEY_ESC": {
+          "type": "key",
+          "key": "KEY_CAPSLOCK"
+        },
+        "KEY_CAPSLOCK": {
+          "type": "key",
+          "key": "KEY_ESC"
+        },
+        "KEY_LEFTALT": {
+          "type": "layer",
+          "mode": "hold",
+          "layer": "alt-nav",
+          "mods": ["LeftAlt"]
+        },
+        "KEY_RIGHTALT": {
+          "type": "layer",
+          "mode": "hold",
+          "layer": "workspaces"
+        }
+      }
+    },
+    {
+      "id": "alt-nav",
+      "name": "Alt nav",
+      "keys": {
+        "KEY_H": {
+          "type": "key",
+          "key": "KEY_LEFT",
+          "releaseHeld": ["LeftAlt"]
+        },
+        "KEY_J": {
+          "type": "key",
+          "key": "KEY_DOWN",
+          "releaseHeld": ["LeftAlt"]
+        },
+        "KEY_K": {
+          "type": "key",
+          "key": "KEY_UP",
+          "releaseHeld": ["LeftAlt"]
+        },
+        "KEY_L": {
+          "type": "key",
+          "key": "KEY_RIGHT",
+          "releaseHeld": ["LeftAlt"]
+        }
+      }
+    },
+    {
+      "id": "workspaces",
+      "name": "Workspaces & Polish",
+      "keys": {
+        "KEY_A": {
+          "type": "key",
+          "key": "KEY_A",
+          "mods": ["RightAlt"]
+        },
+        "KEY_E": {
+          "type": "key",
+          "key": "KEY_E",
+          "mods": ["RightAlt"]
+        },
+        "KEY_O": {
+          "type": "key",
+          "key": "KEY_O",
+          "mods": ["RightAlt"]
+        },
+        "KEY_S": {
+          "type": "key",
+          "key": "KEY_S",
+          "mods": ["RightAlt"]
+        },
+        "KEY_L": {
+          "type": "key",
+          "key": "KEY_L",
+          "mods": ["RightAlt"]
+        },
+        "KEY_Z": {
+          "type": "key",
+          "key": "KEY_Z",
+          "mods": ["RightAlt"]
+        },
+        "KEY_X": {
+          "type": "key",
+          "key": "KEY_X",
+          "mods": ["RightAlt"]
+        },
+        "KEY_C": {
+          "type": "key",
+          "key": "KEY_C",
+          "mods": ["RightAlt"]
+        },
+        "KEY_N": {
+          "type": "key",
+          "key": "KEY_N",
+          "mods": ["RightAlt"]
+        },
+        "KEY_F": {
+          "type": "key",
+          "key": "KEY_1",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_CAPSLOCK": {
+          "type": "key",
+          "key": "KEY_2",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_SPACE": {
+          "type": "key",
+          "key": "KEY_3",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_J": {
+          "type": "key",
+          "key": "KEY_4",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_K": {
+          "type": "key",
+          "key": "KEY_5",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_R": {
+          "type": "key",
+          "key": "KEY_6",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_M": {
+          "type": "key",
+          "key": "KEY_7",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_G": {
+          "type": "key",
+          "key": "KEY_8",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_I": {
+          "type": "key",
+          "key": "KEY_9",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_T": {
+          "type": "key",
+          "key": "KEY_0",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_Q": {
+          "type": "key",
+          "key": "KEY_Q",
+          "mods": ["LeftSuper"]
+        },
+        "KEY_D": {
+          "type": "key",
+          "key": "KEY_D",
+          "mods": ["LeftSuper"]
+        }
+      }
+    }
+  ],
+  "shortcuts": []
+}
