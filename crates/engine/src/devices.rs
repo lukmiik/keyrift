@@ -246,15 +246,28 @@ pub enum Decision {
     Excluded,
     Hidden,
     NotKeyboard,
-    /// Not matching the `--only-device` test filter.
+    /// Not matching the `--only-device` test filter, or a test keyboard seen by a normal engine.
     Filtered,
 }
 
+/// Name prefix of the virtual keyboards the tests create (spec §11.1).
+pub const TEST_DEVICE_PREFIX: &str = "keyrift-test";
+
 pub fn decide(g: &Group, settings: &DeviceSettings, only: Option<&str>) -> Decision {
-    if let Some(only) = only
-        && !g.members.iter().any(|m| m.name.contains(only))
-    {
-        return Decision::Filtered;
+    match only {
+        Some(only) if !g.members.iter().any(|m| m.name.contains(only)) => {
+            return Decision::Filtered;
+        }
+        // A normal engine (the user's service) leaves test keyboards to the test's own engine:
+        // grabbing one would take the test's key presses and type them into the desktop.
+        None if g
+            .members
+            .iter()
+            .any(|m| m.name.starts_with(TEST_DEVICE_PREFIX)) =>
+        {
+            return Decision::Filtered;
+        }
+        _ => {}
     }
     if settings.excluded.iter().any(|m| g.matches(m)) {
         return Decision::Excluded;
@@ -321,6 +334,11 @@ mod tests {
             Decision::Filtered
         );
         assert_eq!(decide(&groups[2], &s, Some("keyrift-test")), Decision::Grab);
+        assert_eq!(
+            decide(&groups[2], &s, None),
+            Decision::Filtered,
+            "a normal engine never grabs test keyboards"
+        );
     }
 
     #[test]
