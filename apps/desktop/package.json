@@ -1,0 +1,9 @@
+{
+  "name": "@keyrift/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^26.6.6"
+  }
+}

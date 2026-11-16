@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // "node": types for Node's built-in modules (net, fs, child_process, …)
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

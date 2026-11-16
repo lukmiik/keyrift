@@ -1,13 +1,13 @@
 {
+  // Shared TypeScript settings. Every package's tsconfig.json "extends" this file.
   "compilerOptions": {
     "target": "es2023",
     "module": "esnext",
-    "lib": ["ES2023", "DOM"],
-    "types": ["vite/client"],
-    "allowArbitraryExtensions": true,
+    "lib": ["ES2023"],
     "skipLibCheck": true,
+    "strict": true,
 
-    /* Bundler mode */
+    /* Bundler mode: Vite+ bundles the code, TypeScript only checks it */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -19,6 +19,5 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src"]
+  }
 }
