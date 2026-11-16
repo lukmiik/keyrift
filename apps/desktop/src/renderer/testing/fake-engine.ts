@@ -3,7 +3,7 @@
  * Tests set the connection and status, and see which methods the page called.
  */
 import type { CallOutcome, ConnectionState, EngineApi, PageMethod } from "../../shared/api.ts";
-import type { EngineEvent, ParamsOf, Status, Topic } from "../../shared/protocol.ts";
+import type { DeviceGroup, EngineEvent, ParamsOf, Status, Topic } from "../../shared/protocol.ts";
 
 /** A plausible status; pass fields to change. */
 export function fakeStatus(fields: Partial<Status> = {}): Status {
@@ -32,21 +32,23 @@ const CONNECTED: ConnectionState = {
 export class FakeEngine implements EngineApi {
   /** Every method the page called, in order. */
   readonly calls: PageMethod[] = [];
-  /** Topics of the last `subscribe` call. */
+  /** Every topic the page subscribed to (the engine adds topics, it never replaces them). */
   subscribedTopics: Topic[] = [];
   /** Set to make the next engine.pause/engine.resume fail with this message. */
   failNextToggle: string | null = null;
   #connection: ConnectionState;
   #status: Status;
+  #devices: DeviceGroup[];
   #eventListeners = new Set<(event: EngineEvent) => void>();
   #stateListeners = new Set<(state: ConnectionState) => void>();
 
-  constructor(options: { connected?: boolean; status?: Status } = {}) {
+  constructor(options: { connected?: boolean; status?: Status; devices?: DeviceGroup[] } = {}) {
     this.#connection =
       options.connected === false
         ? { connected: false, reason: "the engine is not running" }
         : CONNECTED;
     this.#status = options.status ?? fakeStatus();
+    this.#devices = options.devices ?? [];
   }
 
   // Answers like the real engine for the methods the header uses. The cast is needed because
@@ -66,8 +68,12 @@ export class FakeEngine implements EngineApi {
       this.setStatus({ state: method === "engine.pause" ? "paused" : "running" });
     }
     if (method === "subscribe") {
-      this.subscribedTopics = (params as ParamsOf<"subscribe">).topics;
+      const topics = (params as ParamsOf<"subscribe">).topics;
+      this.subscribedTopics = [...new Set([...this.subscribedTopics, ...topics])];
       return answer({ ok: true, result: { topics: this.subscribedTopics } });
+    }
+    if (method === "devices.list") {
+      return answer({ ok: true, result: { devices: this.#devices } });
     }
     return answer({ ok: true, result: this.#status });
   }
@@ -101,8 +107,13 @@ export class FakeEngine implements EngineApi {
   /** Changes the number of grabbed devices and sends a devices event, like plugging one in. */
   setGrabbed(grabbed: number): void {
     this.#status = { ...this.#status, devices: { ...this.#status.devices, grabbed } };
-    // The page asks status.get after this event, so the device list itself can stay empty.
-    this.#emit({ event: "devices", data: { devices: [] } });
+    this.#emit({ event: "devices", data: { devices: this.#devices } });
+  }
+
+  /** Changes the device list and sends a devices event, like plugging one in or excluding it. */
+  setDevices(devices: DeviceGroup[]): void {
+    this.#devices = devices;
+    this.#emit({ event: "devices", data: { devices } });
   }
 
   #emit(event: EngineEvent): void {

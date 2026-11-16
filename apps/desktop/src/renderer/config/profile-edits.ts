@@ -1,0 +1,94 @@
+/**
+ * Every change the GUI can make to a profile, as data (step 8). `applyEdit` turns a profile and an
+ * edit into a new profile. It never changes the profile it gets: React only notices a change when
+ * it gets a new object, and undo needs the old version intact.
+ */
+import type { ActionConfig, KeyName, LayerConfig, Profile } from "@keyrift/config-types";
+
+/** One change to a profile. A tagged union like the engine messages: `type` says which one. */
+export type ProfileEdit =
+  | { type: "setKey"; layerId: string; key: KeyName; action: ActionConfig }
+  | { type: "clearKey"; layerId: string; key: KeyName }
+  | { type: "addLayer"; id: string; name: string }
+  | { type: "removeLayer"; layerId: string }
+  | { type: "renameLayer"; layerId: string; layerName: string };
+
+/** A profile's layers: at least one, the first is the base layer. */
+type Layers = NonNullable<Profile["layers"]>;
+
+/**
+ * Returns the profile with `edit` applied. When the edit changes nothing (a layer that doesn't
+ * exist, removing the base layer, …) it returns the **same** object, so callers can tell.
+ */
+export function applyEdit(profile: Profile, edit: ProfileEdit): Profile {
+  switch (edit.type) {
+    case "setKey":
+      return updateLayer(profile, edit.layerId, (layer) => ({
+        ...layer,
+        keys: { ...layer.keys, [edit.key]: edit.action },
+      }));
+
+    case "clearKey":
+      return updateLayer(profile, edit.layerId, (layer) => {
+        if (layer.keys?.[edit.key] === undefined) {
+          return layer;
+        }
+        // Copy first, then delete from the copy: the original keeps its key.
+        const keys = { ...layer.keys };
+        delete keys[edit.key];
+        return { ...layer, keys };
+      });
+
+    case "addLayer": {
+      const layers = profile.layers;
+      if (layers === undefined || layers.some((layer) => layer.id === edit.id)) {
+        return profile;
+      }
+      return { ...profile, layers: [...layers, { id: edit.id, name: edit.name, keys: {} }] };
+    }
+
+    case "removeLayer": {
+      const layers = profile.layers;
+      // The base layer (first) can't be removed: a profile always has one.
+      if (layers === undefined || layers[0].id === edit.layerId) {
+        return profile;
+      }
+      const [base, ...others] = layers;
+      const kept = others.filter((layer) => layer.id !== edit.layerId);
+      if (kept.length === others.length) {
+        return profile;
+      }
+      return { ...profile, layers: [base, ...kept] };
+    }
+
+    case "renameLayer":
+      // updateLayer only calls this for the layer with `layerId`.
+      return updateLayer(profile, edit.layerId, (layer) =>
+        layer.name === edit.layerName ? layer : { ...layer, name: edit.layerName },
+      );
+  }
+}
+
+/**
+ * Returns the profile with layer `layerId` replaced by `change(layer)`. Returns the same profile
+ * if there is no such layer or `change` returned the layer unchanged.
+ */
+function updateLayer(
+  profile: Profile,
+  layerId: string,
+  change: (layer: LayerConfig) => LayerConfig,
+): Profile {
+  const layers = profile.layers;
+  const index = layers?.findIndex((layer) => layer.id === layerId) ?? -1;
+  if (layers === undefined || index === -1) {
+    return profile;
+  }
+  const changed = change(layers[index]);
+  if (changed === layers[index]) {
+    return profile;
+  }
+  // A new array with one layer swapped; the other layers are shared with the old profile.
+  const [base, ...others] = layers.map((layer, i) => (i === index ? changed : layer));
+  const updated: Layers = [base, ...others];
+  return { ...profile, layers: updated };
+}

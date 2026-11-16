@@ -4,15 +4,22 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { App } from "./App.tsx";
+import { testProfile } from "./config/test-profile.ts";
+import { FakeConfig } from "./testing/fake-config.ts";
 import { FakeEngine } from "./testing/fake-engine.ts";
 
 afterEach(cleanup);
 
 const VERSIONS = { electron: "45.3.2", chrome: "1", node: "2", v8: "3" };
 
+/** Renders the app with fakes; the active profile "daily" is `testProfile()`. */
+function renderApp(config = new FakeConfig({ daily: testProfile() })) {
+  render(<App engine={new FakeEngine()} config={config} versions={VERSIONS} />);
+}
+
 describe("App", () => {
   it("opens on the Keymap screen", () => {
-    render(<App engine={new FakeEngine()} versions={VERSIONS} />);
+    renderApp();
 
     expect(screen.getByRole("heading").textContent).toBe("Keymap");
     expect(screen.getByRole("button", { name: "Keymap" }).getAttribute("aria-current")).toBe(
@@ -21,7 +28,7 @@ describe("App", () => {
   });
 
   it("switches screens from the sidebar", async () => {
-    render(<App engine={new FakeEngine()} versions={VERSIONS} />);
+    renderApp();
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Devices" }));
     expect(screen.getByRole("heading").textContent).toBe("Devices");
@@ -32,9 +39,33 @@ describe("App", () => {
   });
 
   it("shows the versions under Settings", async () => {
-    render(<App engine={new FakeEngine()} versions={VERSIONS} />);
+    renderApp();
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByText(/Electron 45\.3\.2/)).toBeDefined();
+  });
+
+  it("shows the active profile's layers on the Keymap screen", async () => {
+    renderApp();
+
+    const layers = await screen.findByRole("list", { name: "Layers" });
+    expect(layers.textContent).toContain("Base · 1 key");
+    expect(layers.textContent).toContain("Nav · 0 keys");
+    expect(screen.getByText("Saved")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Undo" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("says why the profile can't be opened", async () => {
+    const config = new FakeConfig();
+    config.readProfile = () =>
+      Promise.resolve({
+        ok: false,
+        problem: { file: "profiles/daily.json", message: "not valid JSON", issues: [] },
+      });
+    renderApp(config);
+
+    expect(
+      await screen.findByText(/Cannot open profiles\/daily\.json: not valid JSON/),
+    ).toBeDefined();
   });
 });

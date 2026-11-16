@@ -37,6 +37,19 @@ const api: KeyriftApi = {
     onStateChange: (listener: (state: ConnectionState) => void) =>
       listen("engine:state-changed", listener),
   },
+  config: {
+    activeProfile: () => ipcRenderer.invoke("config:active-profile"),
+    readProfile: (name) => ipcRenderer.invoke("config:read-profile", name),
+    saveProfile: (name, profile) => ipcRenderer.invoke("config:save-profile", name, profile),
+    readSettings: () => ipcRenderer.invoke("config:read-settings"),
+    listProfiles: () => ipcRenderer.invoke("config:list-profiles"),
+    setActiveProfile: (name) => ipcRenderer.invoke("config:set-active-profile", name),
+    createProfile: (name, copyOf) => ipcRenderer.invoke("config:create-profile", name, copyOf),
+    renameProfile: (from, to) => ipcRenderer.invoke("config:rename-profile", from, to),
+    deleteProfile: (name) => ipcRenderer.invoke("config:delete-profile", name),
+    setDeviceRemapped: (device, probablyMouse, remap) =>
+      ipcRenderer.invoke("config:set-device-remapped", device, probablyMouse, remap),
+  },
 };
 
 contextBridge.exposeInMainWorld("keyrift", api);

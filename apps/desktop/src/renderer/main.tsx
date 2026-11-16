@@ -15,6 +15,10 @@ if (root === null) {
 // StrictMode (dev only) runs each effect twice (start, clean up, start) to expose missing cleanup.
 createRoot(root).render(
   <StrictMode>
-    <App engine={window.keyrift.engine} versions={window.keyrift.versions} />
+    <App
+      engine={window.keyrift.engine}
+      config={window.keyrift.config}
+      versions={window.keyrift.versions}
+    />
   </StrictMode>,
 );

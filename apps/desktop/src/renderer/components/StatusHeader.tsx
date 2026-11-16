@@ -1,8 +1,8 @@
 /**
- * The header at the top of the window (spec §7.1): engine state, Pause toggle, profile, active
- * layers and grabbed devices. The profile selector comes with the config store (step 8).
+ * The header at the top of the window (spec §7.1): engine state, Pause toggle, profile selector
+ * (passed in as `children`), active layers and grabbed devices.
  */
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { EngineApi } from "../../shared/api.ts";
 import { useEngineStatus } from "../engine/useEngineStatus.ts";
@@ -11,9 +11,11 @@ import { type PillState, StatusPill } from "./StatusPill.tsx";
 
 type StatusHeaderProps = {
   engine: EngineApi;
+  /** Shown after the Pause toggle: the profile selector. Like a default slot in Vue. */
+  children?: ReactNode;
 };
 
-export function StatusHeader({ engine }: StatusHeaderProps) {
+export function StatusHeader({ engine, children }: StatusHeaderProps) {
   const { connection, status } = useEngineStatus(engine);
   // Last failed pause/resume, shown until the next try.
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export function StatusHeader({ engine }: StatusHeaderProps) {
         disabled={status === null || status.state === "error"}
         onToggle={() => void togglePause()}
       />
+      {children}
       {error !== null && (
         <span role="alert" className="text-sm text-destructive">
           {error}
@@ -57,7 +60,6 @@ export function StatusHeader({ engine }: StatusHeaderProps) {
       {status !== null && (
         // ml-auto pushes this group to the right end of the header.
         <div className="ml-auto flex items-center gap-4 text-sm text-muted-foreground">
-          <span>Profile: {status.profile}</span>
           <span>Layers: {status.activeLayers.join(", ")}</span>
           <span>{status.devices.grabbed} input devices grabbed</span>
         </div>

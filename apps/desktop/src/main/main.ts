@@ -6,11 +6,14 @@ import { join } from "node:path";
 
 import { app, BrowserWindow, nativeTheme } from "electron";
 
+import { ConfigFiles, defaultConfigDir } from "./config/config-files.ts";
 import { defaultSocketPath, EngineConnection } from "./engine/connection.ts";
-import { registerEngineIpc } from "./ipc.ts";
+import { registerConfigIpc, registerEngineIpc } from "./ipc.ts";
 
 // KEYRIFT_SOCKET points the GUI at another engine, e.g. a private test engine.
 const connection = new EngineConnection(process.env.KEYRIFT_SOCKET ?? defaultSocketPath());
+// KEYRIFT_CONFIG_DIR: another config folder, e.g. a test engine's (like the engine's --config-dir).
+const configFiles = new ConfigFiles(process.env.KEYRIFT_CONFIG_DIR ?? defaultConfigDir());
 
 // For automated GUI tests (test/test-app.ts): keep Electron's own data (cache, local storage) in
 // a temporary folder instead of ~/.config, and don't show the window on the user's screen.
@@ -55,6 +58,7 @@ function createWindow(): void {
 
 void app.whenReady().then(() => {
   registerEngineIpc(connection);
+  registerConfigIpc(configFiles);
   connection.start();
   createWindow();
 });

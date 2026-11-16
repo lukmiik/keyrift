@@ -2,8 +2,9 @@
  * Starts the real Keyrift app for GUI tests (spec §11.1), driven by Playwright.
  *
  * The app is the production build (`vp build`), pointed at a private engine through
- * KEYRIFT_SOCKET, with its Electron data in a temp folder and its window hidden. Together with
- * TestEngine this never touches the user's engine, config or screen.
+ * KEYRIFT_SOCKET and at that engine's config folder through KEYRIFT_CONFIG_DIR, with its Electron
+ * data in a temp folder and its window hidden. Together with TestEngine this never touches the
+ * user's engine, config or screen.
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -36,8 +37,11 @@ export class TestApp {
     this.#dataDir = dataDir;
   }
 
-  /** Builds (once) and starts the app, talking to the engine at `socketPath`. */
-  static async start(options: { socketPath: string }): Promise<TestApp> {
+  /**
+   * Builds (once) and starts the app, talking to the engine at `socketPath` and editing the config
+   * in `configDir`. Both are required: without them the app would use the user's real ones.
+   */
+  static async start(options: { socketPath: string; configDir: string }): Promise<TestApp> {
     buildApp();
     const dataDir = mkdtempSync(join(tmpdir(), "keyrift-app-"));
     const app = await electron.launch({
@@ -47,6 +51,7 @@ export class TestApp {
       env: {
         ...process.env,
         KEYRIFT_SOCKET: options.socketPath,
+        KEYRIFT_CONFIG_DIR: options.configDir,
         KEYRIFT_USER_DATA_DIR: dataDir,
         KEYRIFT_HIDE_WINDOW: "1",
       },

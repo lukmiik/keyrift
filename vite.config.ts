@@ -22,6 +22,14 @@ export default defineConfig({
           "no-restricted-imports": [
             "error",
             {
+              paths: [
+                {
+                  // Its validator (ajv) compiles code at runtime, which the page's CSP blocks.
+                  name: "@keyrift/config-types",
+                  allowTypeImports: true,
+                  message: "Only types in the page: validation runs in main (src/main/config).",
+                },
+              ],
               patterns: [
                 {
                   group: ["node:*", "electron", "electron/*", "**/main/**", "**/preload/**"],

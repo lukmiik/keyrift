@@ -9,13 +9,17 @@ import { StatusHeader } from "./StatusHeader.tsx";
 afterEach(cleanup);
 
 describe("StatusHeader", () => {
-  it("shows the engine's state, profile, layers and devices", async () => {
+  it("shows the engine's state, layers and devices, and its children", async () => {
     const engine = new FakeEngine({ status: fakeStatus({ activeLayers: ["base", "nav"] }) });
-    render(<StatusHeader engine={engine} />);
+    render(
+      <StatusHeader engine={engine}>
+        <span>profile selector</span>
+      </StatusHeader>,
+    );
 
     // findBy… waits until the element appears: the hook asks the (fake) engine first.
     expect((await screen.findByText("Running")).getAttribute("role")).toBe("status");
-    expect(screen.getByText("Profile: daily")).toBeDefined();
+    expect(screen.getByText("profile selector")).toBeDefined();
     expect(screen.getByText("Layers: base, nav")).toBeDefined();
     expect(screen.getByText("3 input devices grabbed")).toBeDefined();
     expect(engine.calls).toEqual(["subscribe", "status.get"]);
