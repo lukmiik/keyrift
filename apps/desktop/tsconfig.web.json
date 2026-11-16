@@ -1,0 +1,14 @@
+{
+  // Renderer (the web page): browser APIs only.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": [],
+    // JSX in .tsx files becomes React calls (the new "automatic" runtime: no `import React`).
+    "jsx": "react-jsx",
+    // `@/…` = src/renderer/… (see vite.config.ts).
+    "paths": { "@/*": ["./src/renderer/*"] }
+  },
+  "include": ["src/renderer", "src/shared"]
+}

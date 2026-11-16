@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { encodeRequest, isCompatible, parseServerMessage, stateLabel } from "./protocol.ts";
+import {
+  encodeRequest,
+  isCompatible,
+  isMethod,
+  parseServerMessage,
+  stateLabel,
+} from "./protocol.ts";
 
 describe("parseServerMessage", () => {
   it("parses a result", () => {
@@ -24,8 +30,7 @@ describe("parseServerMessage", () => {
   it("parses an event", () => {
     expect(parseServerMessage('{"event":"status","data":{"state":"paused"}}')).toEqual({
       kind: "event",
-      event: "status",
-      data: { state: "paused" },
+      event: { event: "status", data: { state: "paused" } },
     });
   });
 
@@ -84,5 +89,16 @@ describe("encodeRequest", () => {
     expect(encodeRequest(3, "log.setLevel", { level: "debug" })).toBe(
       '{"id":3,"method":"log.setLevel","params":{"level":"debug"}}\n',
     );
+  });
+});
+
+describe("isMethod", () => {
+  it("knows engine methods", () => {
+    expect(isMethod("status.get")).toBe(true);
+  });
+
+  it("rejects anything else, including object built-ins", () => {
+    expect(isMethod("rm -rf")).toBe(false);
+    expect(isMethod("toString")).toBe(false);
   });
 });

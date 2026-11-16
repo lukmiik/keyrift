@@ -43,7 +43,7 @@ export type RpcError = {
 export type ServerMessage =
   | { kind: "result"; id: number; result: unknown }
   | { kind: "error"; id: number; error: RpcError }
-  | { kind: "event"; event: string; data: unknown };
+  | { kind: "event"; event: EngineEvent };
 
 /** Whether `value` is a plain JSON object (not null, not an array), so its fields can be read. */
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -66,7 +66,9 @@ export function parseServerMessage(line: string): ServerMessage {
     throw new Error(`engine message is not a JSON object: ${line}`);
   }
   if (typeof value.event === "string") {
-    return { kind: "event", event: value.event, data: value.data };
+    // Like call results, event data is trusted to match the protocol (spec §8.2): the cast is
+    // made once here, so the rest of the app gets typed events.
+    return { kind: "event", event: { event: value.event, data: value.data } as EngineEvent };
   }
   if (typeof value.id !== "number") {
     throw new Error(`engine message has neither an id nor an event: ${line}`);
@@ -148,6 +150,30 @@ export function stateLabel(state: EngineState): string {
   }
 }
 
+/** Data of a `tester` event: one key press or release and what the engine did with it. */
+export type TesterEventData = {
+  timeUs: number;
+  device: string;
+  key: string;
+  pressed: boolean;
+  /** The action the key resolved to; typed when the Tester screen is built (step 12). */
+  action: unknown;
+  /** Output keys, e.g. `["+KEY_ESC"]` (`+` press, `-` release). */
+  outputs: string[];
+  layers: string[];
+};
+
+/**
+ * An event the engine pushes on a subscribed topic (spec §8.2). A discriminated union: checking
+ * `event` tells TypeScript which `data` comes with it, so listeners need no casts.
+ */
+export type EngineEvent =
+  | { event: "status"; data: Status }
+  | { event: "layer"; data: { layers: string[] } }
+  | { event: "devices"; data: { devices: DeviceGroup[] } }
+  | { event: "config"; data: ValidationResult }
+  | { event: "tester"; data: TesterEventData };
+
 /** Log levels the engine knows, least to most verbose. */
 export type LogLevel = "error" | "warn" | "info" | "debug";
 
@@ -209,6 +235,30 @@ export type Methods = {
 
 /** Name of any engine method: `"hello" | "status.get" | …`. */
 export type Method = keyof Methods;
+
+/**
+ * Every method name, at runtime: types vanish, but main has to check names the page sends.
+ * `Record<Method, true>` makes TS insist on listing all of them, so this can't fall behind `Methods`.
+ */
+const METHOD_NAMES: Record<Method, true> = {
+  hello: true,
+  "status.get": true,
+  "devices.list": true,
+  "engine.pause": true,
+  "engine.resume": true,
+  "config.reload": true,
+  "config.validate": true,
+  "log.setLevel": true,
+  "record.start": true,
+  "record.stop": true,
+  subscribe: true,
+  unsubscribe: true,
+};
+
+/** Whether `name` is an engine method (type guard). */
+export function isMethod(name: string): name is Method {
+  return Object.hasOwn(METHOD_NAMES, name);
+}
 
 /** The params type of method `M`. */
 export type ParamsOf<M extends Method> = Methods[M]["params"];

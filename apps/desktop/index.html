@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- class="dark": shadcn's dark colours (the .dark block in src/renderer/index.css). -->
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Only our own files may load or run: blocks injected scripts (Electron security checklist). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <title>Keyrift</title>
+  </head>
+  <body>
+    <!-- React draws the whole page into this element (src/renderer/main.tsx). -->
+    <div id="root"></div>
+    <script type="module" src="/src/renderer/main.tsx"></script>
+  </body>
+</html>

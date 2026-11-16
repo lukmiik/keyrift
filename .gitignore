@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust build output
 /target
+
+# Electron main/preload build output
+dist-electron

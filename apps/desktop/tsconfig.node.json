@@ -1,0 +1,9 @@
+{
+  // Main process, preload, tests and build config: Node + Electron APIs.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "types": ["node"]
+  },
+  "include": ["src/main", "src/preload", "src/shared", "test", "e2e", "vite.config.ts"]
+}

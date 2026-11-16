@@ -1,8 +1,8 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    // "node": types for Node's built-in modules (net, fs, child_process, …)
-    "types": ["node"]
-  },
-  "include": ["src"]
+  // Two halves with different worlds: the renderer is a web page (DOM, no Node), the rest runs in
+  // Node/Electron. Each has its own config so the renderer can't accidentally use Node APIs.
+  "files": [],
+  // Repeated from tsconfig.web.json for the shadcn CLI, which reads the alias from this file.
+  "compilerOptions": { "paths": { "@/*": ["./src/renderer/*"] } },
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }
