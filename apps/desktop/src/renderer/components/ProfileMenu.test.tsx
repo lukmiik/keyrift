@@ -45,10 +45,13 @@ describe("ProfileMenu", () => {
 
     await openMenu(user);
     await user.click(screen.getByRole("menuitem", { name: "New profile…" }));
-    await user.type(screen.getByLabelText("Name"), "gaming{Enter}");
+    await user.type(screen.getByLabelText("Name"), "Gaming & Fun");
+    // The file name comes from the name, like a layer's id.
+    expect(screen.getByText("Saved as profiles/gaming-fun.json")).toBeDefined();
+    await user.keyboard("{Enter}");
 
-    expect(await screen.findByRole("button", { name: /Profile: gaming/ })).toBeDefined();
-    expect(config.profiles.get("gaming")).toMatchObject({ name: "gaming" });
+    expect(await screen.findByRole("button", { name: /Profile: gaming-fun/ })).toBeDefined();
+    expect(config.profiles.get("gaming-fun")).toMatchObject({ name: "Gaming & Fun" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -68,6 +71,20 @@ describe("ProfileMenu", () => {
     await user.type(input, "x");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(input.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  it("renames only the name when the file name stays the same", async () => {
+    const { config, user } = await renderApp();
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
+    const input = screen.getByLabelText("Name");
+    await user.clear(input);
+    await user.type(input, "Daily{Enter}");
+
+    await screen.findByRole("button", { name: /Profile: daily/ });
+    expect([...config.profiles.keys()]).toEqual(["work", "daily"]);
+    expect(config.profiles.get("daily")).toMatchObject({ name: "Daily" });
   });
 
   it("keeps the dialog open and says why a rename failed", async () => {

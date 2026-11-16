@@ -7,6 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
+import { watchReloads } from "../test/config-reloads.ts";
 import { TestApp } from "../test/test-app.ts";
 import type { Status } from "../src/shared/protocol.ts";
 import { TestEngine } from "../test/test-engine.ts";
@@ -52,14 +53,14 @@ describe("status header", () => {
     const pill = app.window.getByRole("status");
     await pill.getByText("Running").waitFor({ timeout: 5000 });
 
-    await app.window.getByRole("button", { name: "Pause" }).click();
+    await app.window.getByRole("button", { name: "Pause", exact: true }).click();
     await pill.getByText("Paused").waitFor({ timeout: 5000 });
     // Ask the engine itself, not the page: is it really paused?
     const client = await engine.connect();
     expect(await client.call("status.get", {})).toMatchObject({ state: "paused" });
     await client.close();
 
-    await app.window.getByRole("button", { name: "Resume" }).click();
+    await app.window.getByRole("button", { name: "Resume", exact: true }).click();
     await pill.getByText("Running").waitFor({ timeout: 5000 });
   });
 
@@ -103,13 +104,50 @@ describe("keymap screen", () => {
         { id: "nav", name: "Nav" },
       ],
     });
-    const layers = app.window.getByRole("list", { name: "Layers" });
+    const layers = app.window.getByRole("tablist", { name: "Layers" });
 
-    await layers.getByText("Base · 1 key").waitFor({ timeout: 5000 });
-    expect(await layers.textContent()).toContain("Nav · 0 keys");
+    await layers.getByRole("tab", { name: "Nav" }).waitFor({ timeout: 5000 });
+    expect(await layers.textContent()).toBe("BaseNav");
+    // The keyboard is drawn: keys are placed with style properties, which the CSP must allow.
+    const caps = app.window.getByRole("button", { name: "Caps: Esc" });
+    expect(await caps.evaluate((b) => b.getBoundingClientRect().width)).toBeCloseTo(1.75 * 52 - 4);
     // Nothing was changed, so nothing needs saving.
     await app.window.getByText("Saved", { exact: true }).waitFor({ timeout: 5000 });
   });
+
+  it(
+    "adds, renames and deletes a layer, and the engine applies each save",
+    { timeout: 60_000 },
+    async () => {
+      const { app, engine } = await startAppWithEngine();
+      const w = app.window;
+      const file = join(engine.configDir, "profiles", "test.json");
+      const reloads = await watchReloads(engine);
+      cleanup.push(() => reloads.close());
+      const nextReload = reloads.next;
+      const layerList = () =>
+        (JSON.parse(readFileSync(file, "utf8")) as { layers: { id: string; name?: string }[] })
+          .layers;
+      await w.getByRole("tablist", { name: "Layers" }).waitFor({ timeout: 5000 });
+
+      await w.getByRole("button", { name: "Add layer" }).click();
+      await w.getByLabel("Name", { exact: true }).fill("Mouse");
+      await w.getByRole("button", { name: "Add", exact: true }).click();
+      await nextReload();
+      expect(layerList()).toContainEqual({ id: "mouse", name: "Mouse", keys: {} });
+
+      await w.getByRole("button", { name: "Rename layer" }).click();
+      await w.getByLabel("Name", { exact: true }).fill("Mouse keys");
+      await w.getByRole("button", { name: "Rename", exact: true }).click();
+      await nextReload();
+      expect(layerList()).toContainEqual({ id: "mouse", name: "Mouse keys", keys: {} });
+
+      await w.getByRole("button", { name: "Delete layer" }).click();
+      await w.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+      await nextReload();
+      expect(layerList().map((layer) => layer.id)).toEqual(["base"]);
+    },
+  );
 });
 
 describe("devices screen", () => {

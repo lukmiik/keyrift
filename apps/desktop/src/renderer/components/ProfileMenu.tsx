@@ -4,7 +4,7 @@
  * written under the wrong name.
  */
 import { ChevronDown } from "lucide-react";
-import { type FormEvent, useId, useState } from "react";
+import { useState } from "react";
 
 import type { ConfigApi, ConfigOutcome } from "../../shared/api.ts";
 import type { Profiles } from "../config/useProfiles.ts";
@@ -17,16 +17,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog.tsx";
+import { slugify } from "../config/slug.ts";
+import { NameDialog } from "./NameDialog.tsx";
 import { Button } from "./ui/button.tsx";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,8 +29,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu.tsx";
-import { Input } from "./ui/input.tsx";
-import { Label } from "./ui/label.tsx";
 
 type ProfileMenuProps = {
   config: ConfigApi;
@@ -128,10 +119,11 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
           description="A profile with an empty base layer: every key does its normal thing."
           submitLabel="Create"
           initialName=""
+          hint={fileHint}
           onSubmit={(name) =>
             apply(
-              () => config.createProfile(name, null),
-              () => config.setActiveProfile(name),
+              () => config.createProfile(fileName(name), name, null),
+              () => config.setActiveProfile(fileName(name)),
             )
           }
           onClose={() => setDialog(null)}
@@ -143,10 +135,11 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
           description="A copy of this profile under a new name. The copy becomes active."
           submitLabel="Duplicate"
           initialName={`${active} copy`}
+          hint={fileHint}
           onSubmit={(name) =>
             apply(
-              () => config.createProfile(name, active),
-              () => config.setActiveProfile(name),
+              () => config.createProfile(fileName(name), name, active),
+              () => config.setActiveProfile(fileName(name)),
             )
           }
           onClose={() => setDialog(null)}
@@ -155,10 +148,11 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
       {dialog === "rename" && (
         <NameDialog
           title={`Rename "${active}"`}
-          description={`The file profiles/${active}.json gets the new name.`}
+          description={`The profile's name and its file (now profiles/${active}.json) change.`}
           submitLabel="Rename"
           initialName={active}
-          onSubmit={(name) => apply(() => config.renameProfile(active, name))}
+          hint={fileHint}
+          onSubmit={(name) => apply(() => config.renameProfile(active, fileName(name), name))}
           onClose={() => setDialog(null)}
         />
       )}
@@ -196,85 +190,14 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
   );
 }
 
-type NameDialogProps = {
-  title: string;
-  description: string;
-  submitLabel: string;
-  initialName: string;
-  /** Does the change. Resolves to an error to show, or null when done (the dialog then closes). */
-  onSubmit: (name: string) => Promise<string | null>;
-  onClose: () => void;
-};
+/**
+ * The file a profile named `name` is saved as (without `.json`), like layer ids: "Daily" → "daily",
+ * "Work & play" → "work-play". The name itself is kept in the file's `name` field.
+ */
+export function fileName(name: string): string {
+  return slugify(name, "profile");
+}
 
-/** A dialog that asks for a profile name. */
-function NameDialog({
-  title,
-  description,
-  submitLabel,
-  initialName,
-  onSubmit,
-  onClose,
-}: NameDialogProps) {
-  // A controlled input: React state holds the text, and the input shows the state.
-  const [name, setName] = useState(initialName);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  // A unique id ties the label to the input (for screen readers and getByLabelText).
-  const inputId = useId();
-
-  async function submit(event: FormEvent): Promise<void> {
-    // A form's submit would reload the page; we handle it ourselves.
-    event.preventDefault();
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError("Enter a name");
-      return;
-    }
-    setBusy(true);
-    const failed = await onSubmit(trimmedName);
-    setBusy(false);
-    if (failed === null) {
-      onClose();
-    } else {
-      setError(failed);
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        {/* A form, so Enter in the input submits. */}
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={inputId}>Name</Label>
-            <Input
-              id={inputId}
-              value={name}
-              onChange={(event) => {
-                setError(null);
-                setName(event.target.value);
-              }}
-              aria-invalid={error !== null}
-              autoFocus
-            />
-            {error !== null && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={busy}>
-              {submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+function fileHint(name: string): string {
+  return name === "" ? "" : `Saved as profiles/${fileName(name)}.json`;
 }

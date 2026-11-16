@@ -66,11 +66,15 @@ export function registerConfigIpc(files: ConfigFiles): void {
   ipcMain.handle("config:set-active-profile", (_event, name: unknown) =>
     files.setActiveProfile(name),
   );
-  ipcMain.handle("config:create-profile", (_event, name: unknown, copyOf: unknown) =>
-    files.createProfile(name, copyOf),
+  ipcMain.handle(
+    "config:create-profile",
+    (_event, name: unknown, displayName: unknown, copyOf: unknown) =>
+      files.createProfile(name, displayName, copyOf),
   );
-  ipcMain.handle("config:rename-profile", (_event, from: unknown, to: unknown) =>
-    files.renameProfile(from, to),
+  ipcMain.handle(
+    "config:rename-profile",
+    (_event, from: unknown, to: unknown, displayName: unknown) =>
+      files.renameProfile(from, to, displayName),
   );
   ipcMain.handle("config:delete-profile", (_event, name: unknown) => files.deleteProfile(name));
   ipcMain.handle(

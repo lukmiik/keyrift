@@ -38,6 +38,10 @@ export class TestEngine {
   readonly dir: string;
   readonly socketPath: string;
   readonly configDir: string;
+  /** The folder the engine scans instead of `/dev/input`; empty unless a test adds a keyboard. */
+  readonly inputDir: string;
+  /** Name of the engine's own output keyboard. */
+  readonly outputName: string;
   #process: ChildProcess;
 
   private constructor(id: string, dir: string, process: ChildProcess) {
@@ -45,15 +49,20 @@ export class TestEngine {
     this.dir = dir;
     this.socketPath = join(dir, "keyrift.sock");
     this.configDir = join(dir, "config");
+    this.inputDir = join(dir, "input");
+    this.outputName = `Keyrift virtual keyboard ${id}`;
     this.#process = process;
   }
 
   /**
    * Starts a daemon with `profile` as the active profile and waits until it answers.
+   * `empty`: start with an empty config folder instead (no settings, no profiles).
    * `dir`: an existing directory to use (socket at `<dir>/keyrift.sock`), so a test can know the
    * socket path before the engine starts. Default: a new temporary directory.
    */
-  static async start(options: { profile?: object; dir?: string } = {}): Promise<TestEngine> {
+  static async start(
+    options: { profile?: object; dir?: string; empty?: boolean } = {},
+  ): Promise<TestEngine> {
     const profile = options.profile ?? EMPTY_PROFILE;
     const dir = options.dir ?? mkdtempSync(join(tmpdir(), "keyrift-test-"));
     const id = `keyrift-test-${process.pid}-${dir.slice(-6)}`;
@@ -61,11 +70,14 @@ export class TestEngine {
     const inputDir = join(dir, "input");
     mkdirSync(join(configDir, "profiles"), { recursive: true });
     mkdirSync(inputDir, { recursive: true });
-    writeFileSync(join(configDir, "profiles/test.json"), JSON.stringify(profile));
-    writeFileSync(
-      join(configDir, "settings.json"),
-      JSON.stringify({ version: 1, activeProfile: "test" }),
-    );
+    // `empty`: no settings and no profiles, like a first start.
+    if (options.empty !== true) {
+      writeFileSync(join(configDir, "profiles/test.json"), JSON.stringify(profile));
+      writeFileSync(
+        join(configDir, "settings.json"),
+        JSON.stringify({ version: 1, activeProfile: "test" }),
+      );
+    }
 
     const log = openSync(join(dir, "daemon.log"), "w");
     const child = spawn(

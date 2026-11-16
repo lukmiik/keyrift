@@ -48,9 +48,9 @@ describe("App", () => {
   it("shows the active profile's layers on the Keymap screen", async () => {
     renderApp();
 
-    const layers = await screen.findByRole("list", { name: "Layers" });
-    expect(layers.textContent).toContain("Base · 1 key");
-    expect(layers.textContent).toContain("Nav · 0 keys");
+    const layers = await screen.findByRole("tablist", { name: "Layers" });
+    expect(layers.textContent).toBe("BaseNav");
+    expect(screen.getByRole("button", { name: "Caps: Esc" })).toBeDefined();
     expect(screen.getByText("Saved")).toBeDefined();
     expect(screen.getByRole("button", { name: "Undo" }).hasAttribute("disabled")).toBe(true);
   });

@@ -258,27 +258,32 @@ describe("ConfigFiles", () => {
     it("creates an empty profile", async () => {
       const { files } = await withProfiles(["daily"], "daily");
 
-      expect((await files.createProfile("gaming", null)).ok).toBe(true);
+      expect((await files.createProfile("gaming", "Gaming", null)).ok).toBe(true);
       expect(await files.readProfile("gaming")).toEqual({
         ok: true,
-        value: { version: 1, name: "gaming", layers: [{ id: "base", name: "Base", keys: {} }] },
+        value: {
+          version: 1,
+          name: "Gaming",
+          layers: [{ id: "base", name: "Base", keys: {} }],
+          shortcuts: [],
+        },
       });
     });
 
     it("duplicates a profile under a new name", async () => {
       const { files } = await withProfiles(["daily"], "daily");
 
-      await files.createProfile("copy", "daily");
+      await files.createProfile("copy", "Copy", "daily");
       expect(await files.readProfile("copy")).toEqual({
         ok: true,
-        value: { ...PROFILE, name: "copy" },
+        value: { ...PROFILE, name: "Copy" },
       });
     });
 
     it("doesn't overwrite an existing profile", async () => {
       const { files } = await withProfiles(["daily", "work"], "daily");
 
-      expect(await files.createProfile("work", null)).toMatchObject({
+      expect(await files.createProfile("work", "Work", null)).toMatchObject({
         ok: false,
         problem: { message: "already exists" },
       });
@@ -288,15 +293,24 @@ describe("ConfigFiles", () => {
     it("renames the active profile and keeps it active", async () => {
       const { files } = await withProfiles(["daily"], "daily");
 
-      expect((await files.renameProfile("daily", "main")).ok).toBe(true);
+      expect((await files.renameProfile("daily", "main", "Main")).ok).toBe(true);
       expect(await files.listProfiles()).toEqual({ ok: true, value: ["main"] });
       expect(await files.activeProfile()).toEqual({ ok: true, value: "main" });
+      expect(await files.readProfile("main")).toMatchObject({ value: { name: "Main" } });
+    });
+
+    it("changes only the name when the file stays the same", async () => {
+      const { files } = await withProfiles(["daily"], "daily");
+
+      expect((await files.renameProfile("daily", "daily", "Daily")).ok).toBe(true);
+      expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily"] });
+      expect(await files.readProfile("daily")).toMatchObject({ value: { name: "Daily" } });
     });
 
     it("doesn't rename onto an existing profile", async () => {
       const { files } = await withProfiles(["daily", "work"], "daily");
 
-      expect((await files.renameProfile("daily", "work")).ok).toBe(false);
+      expect((await files.renameProfile("daily", "work", "Work")).ok).toBe(false);
       expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily", "work"] });
     });
 
@@ -332,7 +346,7 @@ describe("ConfigFiles", () => {
       });
 
       const files = new ConfigFiles(engine.configDir);
-      expect((await files.createProfile("work", "test")).ok).toBe(true);
+      expect((await files.createProfile("work", "Work", "test")).ok).toBe(true);
       expect((await files.setActiveProfile("work")).ok).toBe(true);
 
       await switched;

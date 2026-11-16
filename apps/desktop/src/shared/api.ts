@@ -59,10 +59,20 @@ export type ConfigApi = {
   listProfiles(): Promise<ConfigOutcome<string[]>>;
   /** Makes an existing profile the active one (`settings.json`); the engine switches to it. */
   setActiveProfile(name: string): Promise<ConfigOutcome<null>>;
-  /** Creates a profile: a copy of `copyOf`, or with `null` an empty one. Fails if it exists. */
-  createProfile(name: string, copyOf: string | null): Promise<ConfigOutcome<null>>;
-  /** Renames a profile; it stays active if it was. Fails if `to` exists. */
-  renameProfile(from: string, to: string): Promise<ConfigOutcome<null>>;
+  /**
+   * Creates profile `name` (the file name) with `displayName` as its `name` field: a copy of
+   * `copyOf`, or with `null` an empty one. Fails if it exists.
+   */
+  createProfile(
+    name: string,
+    displayName: string,
+    copyOf: string | null,
+  ): Promise<ConfigOutcome<null>>;
+  /**
+   * Renames profile `from` to `to` and sets its `name` field to `displayName`; it stays active if
+   * it was. With `to` equal to `from` only the `name` field changes. Fails if `to` exists.
+   */
+  renameProfile(from: string, to: string, displayName: string): Promise<ConfigOutcome<null>>;
   /** Deletes a profile that isn't the active one. */
   deleteProfile(name: string): Promise<ConfigOutcome<null>>;
   /** Reads and validates `settings.json`. `null` if the file doesn't exist. */

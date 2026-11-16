@@ -165,12 +165,20 @@ export class ConfigFiles {
   }
 
   /**
-   * Creates profile `name`: a copy of profile `copyOf`, or (with `null`) one whose base layer
-   * changes nothing. Its `name` field is set to `name`. Fails if the profile exists already.
+   * Creates profile `name` (the file name): a copy of profile `copyOf`, or (with `null`) one whose
+   * base layer changes nothing and that has no shortcuts. Its `name` field is set to
+   * `displayName`. Fails if the profile exists already.
    */
-  async createProfile(name: unknown, copyOf: unknown): Promise<ConfigOutcome<null>> {
+  async createProfile(
+    name: unknown,
+    displayName: unknown,
+    copyOf: unknown,
+  ): Promise<ConfigOutcome<null>> {
     if (!isProfileName(name)) {
       return badName(name);
+    }
+    if (!isDisplayName(displayName)) {
+      return badName(displayName);
     }
     if (copyOf !== null && !isProfileName(copyOf)) {
       return badName(copyOf);
@@ -179,7 +187,11 @@ export class ConfigFiles {
     if (await this.#exists(file)) {
       return problem(file, "already exists");
     }
-    let profile: Profile = { version: 1, layers: [{ id: "base", name: "Base", keys: {} }] };
+    let profile: Profile = {
+      version: 1,
+      layers: [{ id: "base", name: "Base", keys: {} }],
+      shortcuts: [],
+    };
     if (copyOf !== null) {
       const read = await this.readProfile(copyOf);
       if (!read.ok) {
@@ -190,25 +202,30 @@ export class ConfigFiles {
       }
       profile = read.value;
     }
-    return this.#writeJson(file, { ...profile, name }, validateProfile);
+    return this.#writeJson(file, { ...profile, name: displayName }, validateProfile);
   }
 
   /**
-   * Renames profile `from` to `to`; it stays active if it was. The steps are ordered so that
-   * `activeProfile` never names a missing file (the engine would then pass every key through):
-   * write the new file, switch the active profile, then delete the old file.
+   * Renames profile `from` to `to` and sets its `name` field to `displayName`; it stays active if
+   * it was. The steps are ordered so that `activeProfile` never names a missing file (the engine
+   * would then pass every key through): write the new file, switch the active profile, then
+   * delete the old file. With `to` equal to `from`, only the `name` field changes.
    */
-  async renameProfile(from: unknown, to: unknown): Promise<ConfigOutcome<null>> {
+  async renameProfile(
+    from: unknown,
+    to: unknown,
+    displayName: unknown,
+  ): Promise<ConfigOutcome<null>> {
     if (!isProfileName(from)) {
       return badName(from);
     }
     if (!isProfileName(to)) {
       return badName(to);
     }
-    if (from === to) {
-      return { ok: true, value: null };
+    if (!isDisplayName(displayName)) {
+      return badName(displayName);
     }
-    if (await this.#exists(profileFile(to))) {
+    if (from !== to && (await this.#exists(profileFile(to)))) {
       return problem(profileFile(to), "already exists");
     }
     const read = await this.readProfile(from);
@@ -218,7 +235,11 @@ export class ConfigFiles {
     if (read.value === null) {
       return problem(profileFile(from), "doesn't exist");
     }
-    const written = await this.#writeJson(profileFile(to), read.value, validateProfile);
+    const renamed = { ...read.value, name: displayName };
+    if (from === to) {
+      return this.#writeJson(profileFile(to), renamed, validateProfile);
+    }
+    const written = await this.#writeJson(profileFile(to), renamed, validateProfile);
     if (!written.ok) {
       return written;
     }
@@ -327,6 +348,11 @@ export async function writeFileAtomic(path: string, text: string): Promise<void>
     await rm(temp, { force: true });
     throw error;
   }
+}
+
+/** A profile's display name (its `name` field): any text that isn't blank. */
+function isDisplayName(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
 }
 
 /** Whether `value` looks like `{vendorId, productId, name}`; the schema checks the rest. */

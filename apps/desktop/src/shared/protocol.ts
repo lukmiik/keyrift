@@ -172,7 +172,9 @@ export type EngineEvent =
   | { event: "layer"; data: { layers: string[] } }
   | { event: "devices"; data: { devices: DeviceGroup[] } }
   | { event: "config"; data: ValidationResult }
-  | { event: "tester"; data: TesterEventData };
+  | { event: "tester"; data: TesterEventData }
+  /** A key pressed while this client records (`record.start`); sent to the recording client only. */
+  | { event: "record"; data: { key: string; device: string } };
 
 /** Log levels the engine knows, least to most verbose. */
 export type LogLevel = "error" | "warn" | "info" | "debug";

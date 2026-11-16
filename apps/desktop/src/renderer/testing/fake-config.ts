@@ -70,23 +70,27 @@ export class FakeConfig implements ConfigApi {
     return ok(null);
   }
 
-  createProfile(name: string, copyOf: string | null): Promise<ConfigOutcome<null>> {
+  createProfile(
+    name: string,
+    displayName: string,
+    copyOf: string | null,
+  ): Promise<ConfigOutcome<null>> {
     if (this.profiles.has(name)) return fail(`profiles/${name}.json`, "already exists");
     const source =
       copyOf === null
-        ? { version: 1, layers: [{ id: "base", name: "Base", keys: {} }] }
+        ? { version: 1, layers: [{ id: "base", name: "Base", keys: {} }], shortcuts: [] }
         : this.profiles.get(copyOf);
     if (source === undefined) return fail(`profiles/${copyOf}.json`, "doesn't exist");
-    this.profiles.set(name, { ...source, name } as Profile);
+    this.profiles.set(name, { ...source, name: displayName } as Profile);
     return ok(null);
   }
 
-  renameProfile(from: string, to: string): Promise<ConfigOutcome<null>> {
+  renameProfile(from: string, to: string, displayName: string): Promise<ConfigOutcome<null>> {
     const profile = this.profiles.get(from);
     if (profile === undefined) return fail(`profiles/${from}.json`, "doesn't exist");
-    if (this.profiles.has(to)) return fail(`profiles/${to}.json`, "already exists");
+    if (from !== to && this.profiles.has(to)) return fail(`profiles/${to}.json`, "already exists");
     this.profiles.delete(from);
-    this.profiles.set(to, profile);
+    this.profiles.set(to, { ...profile, name: displayName });
     if (this.active === from) this.active = to;
     return ok(null);
   }

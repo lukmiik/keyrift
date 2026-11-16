@@ -36,7 +36,11 @@ export type ProfileEditor =
     };
 
 /** Used when the profile file doesn't exist yet: just a base layer, every key unchanged. */
-const NEW_PROFILE: Profile = { version: 1, layers: [{ id: "base", name: "Base", keys: {} }] };
+const NEW_PROFILE: Profile = {
+  version: 1,
+  layers: [{ id: "base", name: "Base", keys: {} }],
+  shortcuts: [],
+};
 
 /** What loading found, tagged with the profile it belongs to. */
 type Loaded = { name: string; problem: ConfigProblem | null };

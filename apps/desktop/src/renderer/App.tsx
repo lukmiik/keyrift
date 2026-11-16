@@ -10,6 +10,7 @@ import { DevicesScreen } from "./components/DevicesScreen.tsx";
 import { KeymapScreen } from "./components/KeymapScreen.tsx";
 import { ProfileMenu } from "./components/ProfileMenu.tsx";
 import { ScreenPlaceholder } from "./components/ScreenPlaceholder.tsx";
+import { ShortcutsScreen } from "./components/shortcuts/ShortcutsScreen.tsx";
 import { type Screen, Sidebar } from "./components/Sidebar.tsx";
 import { StatusHeader } from "./components/StatusHeader.tsx";
 import { type ProfileEditor, useProfileEditor } from "./config/useProfileEditor.ts";
@@ -46,8 +47,10 @@ export function App({ engine, config, versions }: AppProps) {
       <div className="flex min-h-0 flex-1">
         <Sidebar current={screen} onSelect={setScreen} />
         <main className="flex-1 overflow-auto p-6">
-          {screen === "keymap" && <KeymapScreen profile={profile} />}
-          {screen === "shortcuts" && <ScreenPlaceholder title="Shortcuts" comesIn="step 13" />}
+          {screen === "keymap" && (
+            <KeymapScreen profile={profile} config={config} engine={engine} />
+          )}
+          {screen === "shortcuts" && <ShortcutsScreen profile={profile} engine={engine} />}
           {screen === "devices" && <DevicesScreen engine={engine} config={config} />}
           {screen === "tester" && <ScreenPlaceholder title="Tester" comesIn="M5" />}
           {screen === "logs" && <ScreenPlaceholder title="Logs" comesIn="M5" />}

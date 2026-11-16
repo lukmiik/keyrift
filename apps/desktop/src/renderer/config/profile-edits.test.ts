@@ -1,7 +1,32 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { applyEdit } from "./profile-edits.ts";
-import { testProfile } from "./test-profile.ts";
+import type { Profile } from "@keyrift/config-types";
+
+import { applyEdit, layerReferences } from "./profile-edits.ts";
+import { deepFreeze, testProfile } from "./test-profile.ts";
+
+/** Base with Caps → Esc and two keys that switch to "nav" (one inside a tap-hold); "nav", "num". */
+function linkedProfile(): Profile {
+  return deepFreeze({
+    version: 1,
+    layers: [
+      {
+        id: "base",
+        keys: {
+          KEY_CAPSLOCK: { type: "key", key: "KEY_ESC" },
+          KEY_RIGHTALT: { type: "layer", mode: "hold", layer: "nav" },
+          KEY_SPACE: {
+            type: "tapHold",
+            tap: { type: "key", key: "KEY_SPACE" },
+            hold: { type: "layer", mode: "hold", layer: "nav" },
+          },
+        },
+      },
+      { id: "nav", keys: { KEY_H: { type: "key", key: "KEY_LEFT" } } },
+      { id: "num", keys: {} },
+    ],
+  });
+}
 
 describe("applyEdit", () => {
   describe("setKey", () => {
@@ -121,5 +146,51 @@ describe("applyEdit", () => {
       const before = testProfile();
       expect(applyEdit(before, { type: "removeLayer", layerId: "nope" })).toBe(before);
     });
+  });
+});
+
+describe("layer references", () => {
+  it("finds every key that switches to a layer, also inside a tap-hold", () => {
+    expect(layerReferences(linkedProfile(), "nav")).toEqual([
+      { layerId: "base", key: "KEY_RIGHTALT" },
+      { layerId: "base", key: "KEY_SPACE" },
+    ]);
+    expect(layerReferences(linkedProfile(), "num")).toEqual([]);
+  });
+
+  it("makes those keys transparent when the layer is removed", () => {
+    const after = applyEdit(linkedProfile(), { type: "removeLayer", layerId: "nav" });
+    expect(after.layers?.map((layer) => layer.id)).toEqual(["base", "num"]);
+    expect(after.layers?.[0].keys).toEqual({ KEY_CAPSLOCK: { type: "key", key: "KEY_ESC" } });
+  });
+});
+
+describe("shortcuts", () => {
+  const superC = {
+    trigger: { mods: ["Super" as const], key: "KEY_C" as const },
+    action: { type: "key" as const, key: "KEY_C" as const, mods: ["LeftCtrl" as const] },
+  };
+  const f1 = { trigger: { key: "KEY_F1" as const }, action: { type: "none" as const } };
+
+  it("adds, replaces and removes rules", () => {
+    const added = applyEdit(applyEdit(testProfile(), { type: "addShortcut", shortcut: superC }), {
+      type: "addShortcut",
+      shortcut: f1,
+    });
+    expect(added.shortcuts).toEqual([superC, f1]);
+
+    const replaced = applyEdit(added, { type: "setShortcut", index: 0, shortcut: f1 });
+    expect(replaced.shortcuts).toEqual([f1, f1]);
+
+    const removed = applyEdit(added, { type: "removeShortcut", index: 0 });
+    expect(removed.shortcuts).toEqual([f1]);
+    // The last one leaves an empty list, like the baseline profile's `"shortcuts": []`.
+    expect(applyEdit(removed, { type: "removeShortcut", index: 0 }).shortcuts).toEqual([]);
+  });
+
+  it("returns the same profile for a rule that doesn't exist", () => {
+    const profile = testProfile();
+    expect(applyEdit(profile, { type: "removeShortcut", index: 0 })).toBe(profile);
+    expect(applyEdit(profile, { type: "setShortcut", index: 3, shortcut: f1 })).toBe(profile);
   });
 });

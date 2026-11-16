@@ -39,6 +39,10 @@ function createWindow(): void {
     webPreferences: {
       // A hidden window would otherwise run its timers slowly, which makes tests flaky.
       backgroundThrottling: !hideWindow,
+      // A hidden normal window draws no frames, so CSS animations stop and Playwright's
+      // "is the element stable?" check (it compares positions across frames) waits seconds.
+      // Offscreen rendering keeps drawing frames without ever showing a window.
+      offscreen: hideWindow,
       // The bridge script that runs before the page (src/preload). Electron's secure defaults stay
       // on: the page has no Node access (nodeIntegration off), runs sandboxed, and sees the preload
       // only through contextBridge (contextIsolation on).

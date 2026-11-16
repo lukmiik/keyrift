@@ -36,6 +36,8 @@ export class FakeEngine implements EngineApi {
   subscribedTopics: Topic[] = [];
   /** Set to make the next engine.pause/engine.resume fail with this message. */
   failNextToggle: string | null = null;
+  /** Keys pressed since `record.start`, or null when not recording. */
+  recorded: string[] | null = null;
   #connection: ConnectionState;
   #status: Status;
   #devices: DeviceGroup[];
@@ -71,6 +73,15 @@ export class FakeEngine implements EngineApi {
       const topics = (params as ParamsOf<"subscribe">).topics;
       this.subscribedTopics = [...new Set([...this.subscribedTopics, ...topics])];
       return answer({ ok: true, result: { topics: this.subscribedTopics } });
+    }
+    if (method === "record.start") {
+      this.recorded = [];
+      return answer({ ok: true, result: {} });
+    }
+    if (method === "record.stop") {
+      const keys = this.recorded ?? [];
+      this.recorded = null;
+      return answer({ ok: true, result: { keys } });
     }
     if (method === "devices.list") {
       return answer({ ok: true, result: { devices: this.#devices } });
@@ -114,6 +125,13 @@ export class FakeEngine implements EngineApi {
   setDevices(devices: DeviceGroup[]): void {
     this.#devices = devices;
     this.#emit({ event: "devices", data: { devices } });
+  }
+
+  /** A physical key press: while recording, the engine reports it in a `record` event. */
+  pressKey(key: string): void {
+    if (this.recorded === null) return;
+    this.recorded.push(key);
+    this.#emit({ event: "record", data: { key, device: "Test keyboard" } });
   }
 
   #emit(event: EngineEvent): void {
