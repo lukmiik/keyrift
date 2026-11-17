@@ -1,0 +1,55 @@
+# Packaging (architecture A16, spec M5): `vp run package` builds the engine and the app, then
+# electron-builder writes a .deb (Debian, Ubuntu), a .pacman (Arch, Omarchy) and an AppImage (any
+# distribution) to release/. Linux on x64 only.
+appId: dev.keyrift.Keyrift
+productName: Keyrift
+# The GUI's command. `keyrift` is the engine's (linked to /usr/bin by after-install.sh).
+executableName: keyrift-gui
+# The package's name for apt and pacman (`apt remove keyrift`) comes from package.json's name,
+# which is the workspace name @keyrift/desktop: name the packaged app `keyrift` instead.
+extraMetadata:
+  name: keyrift
+directories:
+  output: release
+# The built app only: Vite bundles every dependency into dist/ and dist-electron/, so no
+# node_modules are needed.
+files:
+  - package.json
+  - dist/**
+  - dist-electron/**
+  - resources/icon.png
+  - resources/tray-*.png
+  - "!node_modules/**"
+# Plain files next to app.asar (process.resourcesPath), so they can be run and copied.
+extraResources:
+  - from: ../../target/release/keyrift
+    to: keyrift
+  - from: ../../packaging/udev/70-keyrift.rules
+    to: packaging/70-keyrift.rules
+  - from: ../../packaging/modules-load.d/keyrift.conf
+    to: packaging/keyrift.conf
+# File names without the npm scope: Keyrift-0.1.0.AppImage, keyrift_0.1.0_amd64.deb, ….
+artifactName: ${productName}-${version}.${ext}
+linux:
+  target: [deb, pacman, AppImage]
+  # The window's WM_CLASS matches the .desktop file, so launchers and docks link the two.
+  syncDesktopName: true
+  icon: resources/icon.png
+  category: Utility
+  synopsis: Keyboard remapper for Linux/X11
+  description: >-
+    Remaps keyboard keys with layers, tap-hold keys and shortcuts. A background engine does the
+    remapping; this app edits its settings.
+# Both run the same install scripts: engine on PATH, udev rule, uinput at boot.
+deb:
+  artifactName: keyrift_${version}_amd64.${ext}
+  afterInstall: ../../packaging/linux/after-install.sh
+  afterRemove: ../../packaging/linux/after-remove.sh
+pacman:
+  artifactName: keyrift-${version}-x86_64.pkg.tar.xz
+  # electron-builder's default list names Arch packages that are gone (http-parser) or that
+  # Electron's own build already contains (ffmpeg, re2, …). What the prebuilt Electron loads from
+  # the system, plus polkit for the setup wizard's password prompt.
+  depends: [gtk3, nss, alsa-lib, libxss, libxtst, libnotify, xdg-utils, polkit]
+  afterInstall: ../../packaging/linux/after-install.sh
+  afterRemove: ../../packaging/linux/after-remove.sh
