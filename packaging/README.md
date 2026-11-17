@@ -53,12 +53,24 @@ Package checks:
 ## Releases
 
 `.github/workflows/release.yml` builds the packages on GitHub for every `v*` tag and attaches the
-three files above to a GitHub Release for that tag. To cut one:
+three files above to a GitHub Release for that tag, together with `latest-linux.yml`. To cut one:
 
-1. Bump `version` in `apps/desktop/package.json` (e.g. `0.2.0`) and commit it. The workflow fails
-   when the tag doesn't match this version.
-2. Tag that commit: `git tag v0.2.0`.
-3. Push the tag: `git push origin v0.2.0`.
+1. Bump `version` in `apps/desktop/package.json` and in the root `Cargo.toml` (e.g. `0.3.0`), run
+   `cargo build` to update `Cargo.lock`, and commit. The workflow fails when the tag doesn't match
+   both versions.
+2. Tag that commit: `git tag v0.3.0`.
+3. Push the tag: `git push origin v0.3.0`.
+
+### Updates
+
+The app updates itself from these releases (Settings → Updates, electron-updater). It reads
+`latest-linux.yml` from the latest release, downloads the file matching how it was installed and
+installs it: `dpkg -i` or `pacman -U` behind one password prompt (pkexec) for the packages, or by
+replacing the file for the AppImage. electron-builder writes `latest-linux.yml` next to the packages
+and puts `app-update.yml` (where to look) and `package-type` (deb or pacman) into them, because
+`publish` in `electron-builder.yml` names this repository; `--publish never` keeps it from uploading
+anything itself. After a .deb or pacman update the new app restarts `keyrift.service` when the running
+engine is older than the installed one. Version 0.1.0 had no updater: install 0.2.0 by hand once.
 
 `.github/workflows/ci.yml` runs the Rust and TypeScript checks on every push and pull request.
 GitHub's runners have no writable `/dev/uinput`, so the end-to-end and GUI tests skip themselves

@@ -52,7 +52,8 @@ Keyrift is meant for you.
 - **Shortcuts.** Turn one key combination into another, such as Super+C into Ctrl+Shift+C, or switch
   one off entirely.
 - **Macros.** A sequence of keys and pauses, typed with one press. Steps can be picked or recorded.
-- **Profiles.** Keep several complete keymaps and switch between them from the sidebar.
+- **Profiles.** Keep several complete keymaps and switch between them from the sidebar. Export a
+  profile to a file and import it on another computer.
 
 ### The app
 
@@ -68,6 +69,7 @@ Keyrift is meant for you.
   when a toggle layer changes.
 - **Setup wizard** that checks permissions, groups, the uinput module and competing remappers, and
   fixes what it can with a single password prompt.
+- **Updates** from Settings: check, download and install a new version without leaving the app.
 - Undo and redo, autosave, and a light and dark theme.
 
 ### The engine
@@ -97,6 +99,12 @@ The `.deb` and pacman packages install the app to `/opt/Keyrift`, the engine as 
 and the udev rule and module settings the engine needs. The AppImage needs no root to install: it
 copies its engine to `~/.local/share/keyrift/bin` and keeps it up to date there, and the setup
 wizard does the system part with one password prompt.
+
+### Updating
+
+Open **Settings → Updates** and click **Check for updates**. Keyrift downloads the new version from
+GitHub, installs it (the packages ask for your password once) and restarts. Your keymaps stay.
+Version 0.1.0 can't update itself yet: install 0.2.0 by hand once, as above.
 
 ### First start
 
