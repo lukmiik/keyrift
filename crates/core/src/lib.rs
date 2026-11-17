@@ -2,7 +2,7 @@
 //!
 //! This crate is a state machine with no I/O: input events and the current time go in,
 //! output events and timer deadlines come out. That keeps it fully testable with
-//! simulated, timestamped input (see `docs/03-project-specification.md`, §5).
+//! simulated, timestamped input (see the specification, §5).
 #![forbid(unsafe_code)]
 
 mod engine;

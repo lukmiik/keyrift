@@ -1,7 +1,8 @@
 # Keyrift
 
 Keyboard remapper for Linux/X11: a Rust engine (daemon + CLI) and, later, an Electron GUI.
-Specs live in `docs/` (start with `docs/03-project-specification.md`). Phase 1 (milestones M0–M3)
+Specs live in `docs/`, which is kept locally and not committed (start with
+`docs/03-project-specification.md`); only `docs/images/` is in git. Phase 1 (milestones M0–M3)
 is Rust only.
 
 # Rust (Cargo workspace)

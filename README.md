@@ -137,7 +137,7 @@ profiles/daily.json    # one file per profile: layers, keys, shortcuts
 
 The files are validated against a JSON Schema by both the app and the engine, and a broken file never
 replaces a working keymap. [`examples/config`](examples/config) has a complete profile with two extra
-layers, and the [specification](docs/03-project-specification.md#6-configuration-format) describes
+layers, and the schemas in [`packages/config-types/schema`](packages/config-types/schema) describe
 every field.
 
 ## Command line
@@ -169,7 +169,6 @@ crates/engine    the daemon: evdev, uinput, hot-plug, IPC
 crates/cli       the keyrift binary
 apps/desktop     the Electron + React app
 packaging/       udev rule, systemd unit, package scripts
-docs/            specification, architecture and milestone reports
 ```
 
 You need Rust (the version is pinned in `rust-toolchain.toml`), Node.js and Vite+. Then:
@@ -194,7 +193,3 @@ they skip themselves.
 To build the packages locally, run `vp run package` in `apps/desktop`; see
 [`packaging/README.md`](packaging/README.md). Pushing a `v*` tag builds them on GitHub and attaches them
 to a release.
-
-The design is documented in [`docs/`](docs): start with the
-[project specification](docs/03-project-specification.md) and the
-[architecture](docs/02-architecture-and-tech-stack.md).
