@@ -11,6 +11,9 @@ extraMetadata:
   name: keyrift
 directories:
   output: release
+# No publishing from electron-builder: in CI on a tag it would try to upload to GitHub itself.
+# .github/workflows/release.yml attaches the files to the GitHub Release instead.
+publish: null
 # The built app only: Vite bundles every dependency into dist/ and dist-electron/, so no
 # node_modules are needed.
 files:

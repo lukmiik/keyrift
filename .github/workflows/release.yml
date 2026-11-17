@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  # Creating the GitHub Release and uploading its files.
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the tag matches apps/desktop/package.json
+        run: |
+          version=$(node -p 'require("./apps/desktop/package.json").version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, but apps/desktop/package.json has version $version"
+            exit 1
+          fi
+      # bsdtar, for electron-builder's pacman package.
+      - run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+      # rustup reads the channel and components from rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26"
+          run-install: false
+      - run: vp install
+      - run: vp run package
+        working-directory: apps/desktop
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            apps/desktop/release/keyrift_*_amd64.deb
+            apps/desktop/release/keyrift-*-x86_64.pkg.tar.xz
+            apps/desktop/release/Keyrift-*.AppImage
+          fail_on_unmatched_files: true

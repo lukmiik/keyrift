@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR replaces the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # rustup reads the channel and components from rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo build --workspace --all-targets --locked
+      - run: cargo fmt-check
+      - run: cargo lint
+      # Runners have no writable /dev/uinput: the end-to-end tests skip themselves
+      # (`uinput_available()` in crates/cli/tests/common/mod.rs).
+      - run: cargo test --workspace --locked
+      - run: cargo deny check
+
+  desktop:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # The tests' global setup (apps/desktop/test/global-setup.ts) builds the engine.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      # Installs vp; it then uses the pnpm version from devEngines in the root package.json.
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26"
+          cache: true
+          run-install: false
+      - run: vp install
+      - run: vp check
+      # The GUI tests start an engine, which needs /dev/uinput: without it they skip themselves
+      # (`uinputAvailable()` in apps/desktop/test/test-keyboard.ts), so no X display is needed.
+      - run: vp test

@@ -49,3 +49,17 @@ Package checks:
   an empty HOME and connects it to its engine running as a test unit.
 - `cargo test -p keyrift --test m5_update -- --ignored` replaces the engine binary while it runs
   and restarts the unit with a key held.
+
+## Releases
+
+`.github/workflows/release.yml` builds the packages on GitHub for every `v*` tag and attaches the
+three files above to a GitHub Release for that tag. To cut one:
+
+1. Bump `version` in `apps/desktop/package.json` (e.g. `0.2.0`) and commit it. The workflow fails
+   when the tag doesn't match this version.
+2. Tag that commit: `git tag v0.2.0`.
+3. Push the tag: `git push origin v0.2.0`.
+
+`.github/workflows/ci.yml` runs the Rust and TypeScript checks on every push and pull request.
+GitHub's runners have no writable `/dev/uinput`, so the end-to-end and GUI tests skip themselves
+there: run them locally.
