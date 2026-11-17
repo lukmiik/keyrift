@@ -46,6 +46,13 @@ describe("trayView", () => {
     });
   });
 
+  it("shows the profile's display name when it has one", () => {
+    const status = fakeStatus({ profile: "work-play", activeLayers: ["base"] });
+    expect(trayView(CONNECTED, status, NAMES, "Work & play").tooltip).toBe(
+      "Keyrift: Active · Work & play · Base",
+    );
+  });
+
   it("offers Resume when paused or released, nothing on error", () => {
     const view = (state: "paused" | "released" | "error") =>
       trayView(CONNECTED, fakeStatus({ state }), NAMES);

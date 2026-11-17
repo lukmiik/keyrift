@@ -292,7 +292,30 @@ describe("ConfigFiles", () => {
       put(dir, "profiles/.daily.json.123.tmp", "{}");
       put(dir, "profiles/notes.txt", "");
 
-      expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily", "work"] });
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [
+          { file: "daily", name: "daily" },
+          { file: "work", name: "work" },
+        ],
+      });
+    });
+
+    it("lists profiles by display name, or by file name without one", async () => {
+      const { dir, files } = await withProfiles(["daily"], "daily");
+      await files.createProfile("work-play", "Work & play", null);
+      await files.createProfile("zz", "Alpha", null);
+      put(dir, "profiles/broken.json", "{");
+
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [
+          { file: "zz", name: "Alpha" },
+          { file: "broken", name: "broken" },
+          { file: "daily", name: "daily" },
+          { file: "work-play", name: "Work & play" },
+        ],
+      });
     });
 
     it("lists no profiles without a profiles folder", async () => {
@@ -339,7 +362,10 @@ describe("ConfigFiles", () => {
       const { files } = await withProfiles(["daily"], "daily");
 
       expect((await files.renameProfile("daily", "main", "Main")).ok).toBe(true);
-      expect(await files.listProfiles()).toEqual({ ok: true, value: ["main"] });
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [{ file: "main", name: "Main" }],
+      });
       expect(await files.activeProfile()).toEqual({ ok: true, value: "main" });
       expect(await files.readProfile("main")).toMatchObject({ value: { name: "Main" } });
     });
@@ -348,7 +374,10 @@ describe("ConfigFiles", () => {
       const { files } = await withProfiles(["daily"], "daily");
 
       expect((await files.renameProfile("daily", "daily", "Daily")).ok).toBe(true);
-      expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily"] });
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [{ file: "daily", name: "Daily" }],
+      });
       expect(await files.readProfile("daily")).toMatchObject({ value: { name: "Daily" } });
     });
 
@@ -356,7 +385,13 @@ describe("ConfigFiles", () => {
       const { files } = await withProfiles(["daily", "work"], "daily");
 
       expect((await files.renameProfile("daily", "work", "Work")).ok).toBe(false);
-      expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily", "work"] });
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [
+          { file: "daily", name: "daily" },
+          { file: "work", name: "work" },
+        ],
+      });
     });
 
     it("deletes a profile, but not the active one", async () => {
@@ -364,7 +399,10 @@ describe("ConfigFiles", () => {
 
       expect((await files.deleteProfile("daily")).ok).toBe(false);
       expect((await files.deleteProfile("work")).ok).toBe(true);
-      expect(await files.listProfiles()).toEqual({ ok: true, value: ["daily"] });
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [{ file: "daily", name: "daily" }],
+      });
     });
 
     it("switches only to a profile that exists", async () => {

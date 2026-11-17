@@ -15,11 +15,11 @@ afterEach(cleanup);
 
 const VERSIONS = { electron: "1", chrome: "1", node: "1", v8: "1" };
 
-/** The whole app with profiles "daily" (active) and "work". */
+/** The whole app with profiles "Daily life" (active, daily.json) and "Work stuff" (work.json). */
 async function renderApp() {
   const config = new FakeConfig({
-    daily: testProfile(),
-    work: { version: 1, name: "work", layers: [{ id: "base", name: "Work base" }] },
+    daily: { ...testProfile(), name: "Daily life" },
+    work: { version: 1, name: "Work stuff", layers: [{ id: "base", name: "Work base" }] },
   });
   render(
     <App
@@ -32,7 +32,7 @@ async function renderApp() {
     />,
   );
   const user = userEvent.setup();
-  await screen.findByRole("button", { name: /Profile: daily/ });
+  await screen.findByRole("button", { name: "Profile: Daily life" });
   return { config, user };
 }
 
@@ -47,9 +47,10 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitemradio", { name: "work" }));
+    // The menu lists what the user called each profile, not its file name.
+    await user.click(screen.getByRole("menuitemradio", { name: "Work stuff" }));
 
-    expect(await screen.findByRole("button", { name: /Profile: work/ })).toBeDefined();
+    expect(await screen.findByRole("button", { name: "Profile: Work stuff" })).toBeDefined();
     expect(config.active).toBe("work");
     // The Keymap screen opened the other profile.
     expect(await screen.findByRole("tab", { name: "Work base" })).toBeDefined();
@@ -65,7 +66,7 @@ describe("ProfileMenu", () => {
     expect(screen.getByText("Saved as profiles/gaming-fun.json")).toBeDefined();
     await user.keyboard("{Enter}");
 
-    expect(await screen.findByRole("button", { name: /Profile: gaming-fun/ })).toBeDefined();
+    expect(await screen.findByRole("button", { name: "Profile: Gaming & Fun" })).toBeDefined();
     expect(config.profiles.get("gaming-fun")).toMatchObject({ name: "Gaming & Fun" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -97,7 +98,7 @@ describe("ProfileMenu", () => {
     await user.clear(input);
     await user.type(input, "Daily{Enter}");
 
-    await screen.findByRole("button", { name: /Profile: daily/ });
+    await screen.findByRole("button", { name: "Profile: Daily" });
     expect([...config.profiles.keys()]).toEqual(["work", "daily"]);
     expect(config.profiles.get("daily")).toMatchObject({ name: "Daily" });
   });
@@ -125,7 +126,7 @@ describe("ProfileMenu", () => {
     expect(screen.getByRole("alertdialog").textContent).toContain("can't be undone");
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(await screen.findByRole("button", { name: /Profile: work/ })).toBeDefined();
+    expect(await screen.findByRole("button", { name: "Profile: Work stuff" })).toBeDefined();
     expect([...config.profiles.keys()]).toEqual(["work"]);
   });
 });

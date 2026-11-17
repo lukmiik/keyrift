@@ -8,7 +8,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 
 import type { ConfigApi, ConfigOutcome } from "../../shared/api.ts";
-import type { Profiles } from "../config/useProfiles.ts";
+import { displayName, type Profiles } from "../config/useProfiles.ts";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -48,12 +48,14 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
   const [dialog, setDialog] = useState<OpenDialog>(null);
   // Why switching failed (the dialogs show their own errors).
   const [error, setError] = useState<string | null>(null);
-  const { names, active } = profiles;
+  const { list, active } = profiles;
   if (active === null) {
     return null;
   }
+  // What the user called the active profile; `active` is its file name.
+  const activeName = displayName(list, active);
   // The profile to switch to before deleting the active one.
-  const other = names.find((name) => name !== active);
+  const other = list.find((entry) => entry.file !== active);
 
   /**
    * Saves the open profile, then runs `steps` in order and stops at the first problem. Reloads
@@ -84,7 +86,7 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           // The visible text is split in two lines; this names the button as one phrase.
-          aria-label={`Profile: ${active}`}
+          aria-label={`Profile: ${activeName}`}
           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted"
         >
           {/* The name's first letter, like an account's avatar. */}
@@ -92,10 +94,10 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
             aria-hidden
             className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold uppercase"
           >
-            {active.slice(0, 1)}
+            {activeName.slice(0, 1)}
           </span>
           <span className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate font-medium">{active}</span>
+            <span className="truncate font-medium">{activeName}</span>
             <span className="text-xs text-muted-foreground">Profile</span>
           </span>
           <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -103,9 +105,9 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
         {/* Opens upwards: the button is at the bottom of the window. */}
         <DropdownMenuContent side="top" className="w-56">
           <DropdownMenuRadioGroup value={active} onValueChange={(name) => void switchTo(name)}>
-            {names.map((name) => (
-              <DropdownMenuRadioItem key={name} value={name}>
-                {name}
+            {list.map((entry) => (
+              <DropdownMenuRadioItem key={entry.file} value={entry.file}>
+                {entry.name}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -148,10 +150,10 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
       )}
       {dialog === "duplicate" && (
         <NameDialog
-          title={`Duplicate "${active}"`}
+          title={`Duplicate "${activeName}"`}
           description="A copy of this profile under a new name. The copy becomes active."
           submitLabel="Duplicate"
-          initialName={`${active} copy`}
+          initialName={`${activeName} copy`}
           hint={fileHint}
           onSubmit={(name) =>
             apply(
@@ -164,10 +166,10 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
       )}
       {dialog === "rename" && (
         <NameDialog
-          title={`Rename "${active}"`}
+          title={`Rename "${activeName}"`}
           description={`The profile's name and its file (now profiles/${active}.json) change.`}
           submitLabel="Rename"
-          initialName={active}
+          initialName={activeName}
           hint={fileHint}
           onSubmit={(name) => apply(() => config.renameProfile(active, fileName(name), name))}
           onClose={() => setDialog(null)}
@@ -177,9 +179,9 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
         <AlertDialog open onOpenChange={(open) => !open && setDialog(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete profile "{active}"?</AlertDialogTitle>
+              <AlertDialogTitle>Delete profile "{activeName}"?</AlertDialogTitle>
               <AlertDialogDescription>
-                profiles/{active}.json is deleted and "{other}" becomes active. This can't be
+                profiles/{active}.json is deleted and "{other.name}" becomes active. This can't be
                 undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -189,7 +191,7 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
                 variant="destructive"
                 onClick={() =>
                   void apply(
-                    () => config.setActiveProfile(other),
+                    () => config.setActiveProfile(other.file),
                     () => config.deleteProfile(active),
                   ).then((failed) => {
                     setError(failed);

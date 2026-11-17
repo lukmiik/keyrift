@@ -4,8 +4,15 @@
  */
 import type { DeviceMatch, Profile, Settings } from "@keyrift/config-types";
 
-import type { ConfigApi, ConfigOutcome, ConfigProblem, SettingsChanges } from "../../shared/api.ts";
+import type {
+  ConfigApi,
+  ConfigOutcome,
+  ConfigProblem,
+  ProfileEntry,
+  SettingsChanges,
+} from "../../shared/api.ts";
 import { setRemapped } from "../../shared/devices.ts";
+import { byName } from "../../shared/profiles.ts";
 
 export class FakeConfig implements ConfigApi {
   /** Profile files by name. */
@@ -75,8 +82,12 @@ export class FakeConfig implements ConfigApi {
     return ok(null);
   }
 
-  listProfiles(): Promise<ConfigOutcome<string[]>> {
-    return ok([...this.profiles.keys()].sort((a, b) => a.localeCompare(b)));
+  listProfiles(): Promise<ConfigOutcome<ProfileEntry[]>> {
+    const entries = [...this.profiles].map(([file, profile]) => ({
+      file,
+      name: profile.name !== undefined && profile.name.trim() !== "" ? profile.name : file,
+    }));
+    return ok(entries.sort(byName));
   }
 
   setActiveProfile(name: string): Promise<ConfigOutcome<null>> {

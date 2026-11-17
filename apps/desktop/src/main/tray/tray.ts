@@ -40,6 +40,8 @@ export class KeyriftTray {
   #tray: Tray | null = null;
   #status: Status | null = null;
   #names: LayerNames = new Map();
+  /** The loaded profile's `name` field, if it has one. */
+  #profileName: string | null = null;
   #toggled = new Set<string>();
   /** The profile whose names and toggled layers are loaded. */
   #profile: string | null = null;
@@ -114,6 +116,7 @@ export class KeyriftTray {
     const read = await this.#files.readProfile(name);
     const profile: Profile | null = read.ok ? read.value : null;
     this.#names = profile === null ? new Map() : layerNames(profile);
+    this.#profileName = profile?.name?.trim() ? profile.name : null;
     this.#toggled = profile === null ? new Set() : toggledLayers(profile);
     this.#render();
   }
@@ -135,7 +138,7 @@ export class KeyriftTray {
   }
 
   #render(): void {
-    this.view = trayView(this.#connection.state, this.#status, this.#names);
+    this.view = trayView(this.#connection.state, this.#status, this.#names, this.#profileName);
     if (this.#tray === null) return;
     this.#tray.setImage(this.#image());
     this.#tray.setToolTip(this.view.tooltip);

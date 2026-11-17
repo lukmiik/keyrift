@@ -38,14 +38,14 @@ describe.skipIf(!uinputAvailable())("Tray", () => {
 
     await expect.poll(view, { timeout: 5000 }).toMatchObject({
       icon: "running",
-      tooltip: "Keyrift: Active · test · Base",
+      tooltip: "Keyrift: Active · Test · Base",
       toggle: { label: "Pause remapping" },
     });
 
     // A toggled layer: the tooltip shows it, and a notification says it turned on, then off.
     await keyboard.down("KEY_F1");
     await keyboard.up("KEY_F1");
-    await expect.poll(view).toMatchObject({ tooltip: "Keyrift: Active · test · Base → Games" });
+    await expect.poll(view).toMatchObject({ tooltip: "Keyrift: Active · Test · Base → Games" });
     await keyboard.down("KEY_F1");
     await keyboard.up("KEY_F1");
     await expect

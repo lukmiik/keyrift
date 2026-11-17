@@ -20,8 +20,9 @@ import {
   validateSettings,
 } from "@keyrift/config-types";
 
-import type { ConfigOutcome, ConfigProblem } from "../../shared/api.ts";
+import type { ConfigOutcome, ConfigProblem, ProfileEntry } from "../../shared/api.ts";
 import { setRemapped } from "../../shared/devices.ts";
+import { byName } from "../../shared/profiles.ts";
 
 /** `~/.config/keyrift`, or under `$XDG_CONFIG_HOME` if set; same rule as the engine. */
 export function defaultConfigDir(): string {
@@ -156,8 +157,11 @@ export class ConfigFiles {
     return this.#writeJson(file, profile, validateProfile);
   }
 
-  /** Names of the profiles in `profiles/` (file names without `.json`), sorted. */
-  async listProfiles(): Promise<ConfigOutcome<string[]>> {
+  /**
+   * The profiles in `profiles/`, sorted by display name. A profile that can't be read or has no
+   * `name` is listed by its file name, so it can still be switched to, renamed or deleted.
+   */
+  async listProfiles(): Promise<ConfigOutcome<ProfileEntry[]>> {
     let files: string[];
     try {
       files = await readdir(join(this.dir, "profiles"));
@@ -171,9 +175,15 @@ export class ConfigFiles {
       .filter((file) => file.endsWith(".json"))
       .map((file) => file.slice(0, -".json".length))
       // Also skips the GUI's own temporary files, which start with a dot.
-      .filter(isProfileName)
-      .sort((a, b) => a.localeCompare(b));
-    return { ok: true, value: names };
+      .filter(isProfileName);
+    const entries = await Promise.all(
+      names.map(async (file) => {
+        const read = await this.readProfile(file);
+        const name = read.ok ? read.value?.name : undefined;
+        return { file, name: name !== undefined && name.trim() !== "" ? name : file };
+      }),
+    );
+    return { ok: true, value: entries.sort(byName) };
   }
 
   /** Makes `name` the active profile in `settings.json`; the engine switches to it. */

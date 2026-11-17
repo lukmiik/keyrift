@@ -26,6 +26,8 @@ export function trayView(
   connection: ConnectionState,
   status: Status | null,
   names: LayerNames,
+  /** The active profile's display name; the engine's status only has its file name. */
+  profileName: string | null = null,
 ): TrayView {
   if (!connection.connected || status === null) {
     return { icon: "paused", tooltip: "Keyrift: engine not running", toggle: null };
@@ -37,7 +39,7 @@ export function trayView(
       const layers = status.activeLayers.map((id) => names.get(id) ?? id).join(" → ");
       return {
         icon: "running",
-        tooltip: `Keyrift: Active · ${status.profile} · ${layers}`,
+        tooltip: `Keyrift: Active · ${profileName ?? status.profile} · ${layers}`,
         toggle: pause,
       };
     }

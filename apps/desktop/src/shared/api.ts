@@ -55,6 +55,12 @@ export type ConfigProblem = {
 /** Like `CallOutcome`: a problem is returned as data, never thrown. */
 export type ConfigOutcome<T> = { ok: true; value: T } | { ok: false; problem: ConfigProblem };
 
+/**
+ * A profile in the list: `file` is its file name without `.json` (what the engine and the other
+ * calls use), `name` what the user called it (the file's `name` field, or `file` without one).
+ */
+export type ProfileEntry = { file: string; name: string };
+
 /** The config folder, as the page sees it (main reads and writes the files, step 8c). */
 export type ConfigApi = {
   /** The active profile's name, from `settings.json` ("default" if there is no settings file). */
@@ -63,8 +69,8 @@ export type ConfigApi = {
   readProfile(name: string): Promise<ConfigOutcome<Profile | null>>;
   /** Validates `profile` and writes it to `profiles/<name>.json` (atomically). */
   saveProfile(name: string, profile: Profile): Promise<ConfigOutcome<null>>;
-  /** Names of the profiles in `profiles/` (file names without `.json`), sorted. */
-  listProfiles(): Promise<ConfigOutcome<string[]>>;
+  /** The profiles in `profiles/`, sorted by display name. */
+  listProfiles(): Promise<ConfigOutcome<ProfileEntry[]>>;
   /** Makes an existing profile the active one (`settings.json`); the engine switches to it. */
   setActiveProfile(name: string): Promise<ConfigOutcome<null>>;
   /**
