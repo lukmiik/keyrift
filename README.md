@@ -14,7 +14,7 @@ instead of writing a config language.
 ![Engine: Rust](https://img.shields.io/badge/engine-Rust-b7410e)
 ![GUI: Electron](https://img.shields.io/badge/GUI-Electron%20%2B%20React-47848f)
 
-[Install](#install) · [Features](#features) · [How it works](#how-it-works) · [Command line](#command-line) · [Development](#development)
+[Install](#install) · [Features](#features) · [Command line](#command-line) · [Development](#development)
 
 </div>
 
@@ -117,24 +117,6 @@ sudo apt remove keyrift            # or: sudo pacman -R keyrift
 ```
 
 Your keymaps stay in `~/.config/keyrift/` until you delete that folder.
-
-## How it works
-
-```
- physical keyboard ──► Keyrift engine ──► virtual keyboard ──► X11 ──► your apps
-   (grabbed, so X       (layers, tap-hold,      (/dev/uinput)
-    no longer sees it)   shortcuts, macros)
-                              ▲
-                              │  Unix socket
-                              │
-                         Keyrift app ── edits ──► ~/.config/keyrift/*.json
-```
-
-The engine grabs each keyboard so its raw events go only to Keyrift, works out what each press means,
-and replays the result through a virtual keyboard. X11 then turns those key codes into characters with
-your normal layout, so the keymap works in every application. The app never sees your keystrokes
-unless you open the Tester, press Record or run the setup wizard's key test; it talks to the engine over a local socket and edits the
-config files, which the engine reloads.
 
 ## Configuration
 
