@@ -62,7 +62,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "New profile…" }));
+    await user.click(screen.getByRole("menuitem", { name: "New profile" }));
     await user.type(screen.getByLabelText("Name"), "Gaming & Fun");
     // The file name comes from the name, like a layer's id.
     expect(screen.getByText("Saved as profiles/gaming-fun.json")).toBeDefined();
@@ -77,7 +77,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "New profile…" }));
+    await user.click(screen.getByRole("menuitem", { name: "New profile" }));
     const input = screen.getByLabelText("Name");
     await user.type(input, "   {Enter}");
 
@@ -95,7 +95,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }));
     const input = screen.getByLabelText("Name");
     await user.clear(input);
     await user.type(input, "Daily{Enter}");
@@ -109,7 +109,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }));
     const input = screen.getByLabelText("Name");
     await user.clear(input);
     await user.type(input, "work{Enter}");
@@ -124,7 +124,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Delete…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
     expect(screen.getByRole("alertdialog").textContent).toContain("can't be undone");
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
@@ -137,7 +137,7 @@ describe("ProfileMenu", () => {
     config.toImport = { version: 1, name: "Gaming", layers: [{ id: "base", name: "Game base" }] };
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Import…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Import" }));
 
     expect(await screen.findByRole("button", { name: "Profile: Gaming" })).toBeDefined();
     expect(config.active).toBe("gaming");
@@ -148,7 +148,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Import…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Import" }));
 
     await screen.findByRole("button", { name: "Profile: Daily life" });
     expect([...config.profiles.keys()]).toEqual(["daily", "work"]);
@@ -159,7 +159,7 @@ describe("ProfileMenu", () => {
     const { config, user } = await renderApp();
 
     await openMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "Export…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Export" }));
 
     await waitFor(() => expect(config.exports.map((e) => e.name)).toEqual(["daily"]));
     expect(config.exports[0]?.profile).toMatchObject({ name: "Daily life" });

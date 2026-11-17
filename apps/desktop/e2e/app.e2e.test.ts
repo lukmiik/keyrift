@@ -208,7 +208,7 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
 
       // Create: the new profile becomes active in the engine.
       await openMenu("test");
-      await w.getByRole("menuitem", { name: "New profile…" }).click();
+      await w.getByRole("menuitem", { name: "New profile" }).click();
       await w.getByLabel("Name", { exact: true }).fill("gaming");
       await w.getByRole("button", { name: "Create" }).click();
       expect(await waitForEngine(engine, (s) => s.profile === "gaming")).toMatchObject({
@@ -218,7 +218,7 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
 
       // Rename: the file moves, and the engine follows the new name.
       await openMenu("gaming");
-      await w.getByRole("menuitem", { name: "Rename…" }).click();
+      await w.getByRole("menuitem", { name: "Rename" }).click();
       await w.getByLabel("Name", { exact: true }).fill("play");
       await w.getByRole("button", { name: "Rename" }).click();
       expect(await waitForEngine(engine, (s) => s.profile === "play")).toMatchObject({
@@ -229,7 +229,7 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
 
       // Delete: after confirming, the engine is back on "test" and the file is gone.
       await openMenu("play");
-      await w.getByRole("menuitem", { name: "Delete…" }).click();
+      await w.getByRole("menuitem", { name: "Delete" }).click();
       await w.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
       expect(await waitForEngine(engine, (s) => s.profile === "test")).toMatchObject({
         profile: "test",
@@ -248,7 +248,7 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
     // Export: the file is the profile as saved in the config folder.
     await app.stubFileDialogs({ save: shared });
     await w.getByRole("button", { name: "Profile: test" }).click();
-    await w.getByRole("menuitem", { name: "Export…" }).click();
+    await w.getByRole("menuitem", { name: "Export" }).click();
     await expect
       .poll(() => (existsSync(shared) ? JSON.parse(readFileSync(shared, "utf8")) : null))
       .toEqual(JSON.parse(readFileSync(join(engine.configDir, "profiles/test.json"), "utf8")));
@@ -260,7 +260,7 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
     );
     await app.stubFileDialogs({ open: shared });
     await w.getByRole("button", { name: "Profile: test" }).click();
-    await w.getByRole("menuitem", { name: "Import…" }).click();
+    await w.getByRole("menuitem", { name: "Import" }).click();
     expect(await waitForEngine(engine, (s) => s.profile === "shared")).toMatchObject({
       profile: "shared",
       configIssues: [],

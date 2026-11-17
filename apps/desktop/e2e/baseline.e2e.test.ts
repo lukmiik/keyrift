@@ -88,7 +88,7 @@ describe.skipIf(!uinputAvailable())("baseline profile", () => {
 
     // A new profile "Daily" (saved as daily.json), made active.
     await w.getByRole("button", { name: "Profile: default" }).click();
-    await w.getByRole("menuitem", { name: "New profile…" }).click();
+    await w.getByRole("menuitem", { name: "New profile" }).click();
     await w.getByLabel("Name", { exact: true }).fill("Daily");
     await w.getByRole("button", { name: "Create", exact: true }).click();
     await w.getByRole("button", { name: "Profile: daily" }).waitFor({ timeout: 5000 });

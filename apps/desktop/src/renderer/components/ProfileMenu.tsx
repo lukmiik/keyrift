@@ -139,20 +139,20 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setDialog("create")}>New profile…</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDialog("duplicate")}>Duplicate…</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDialog("rename")}>Rename…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setDialog("create")}>New profile</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setDialog("duplicate")}>Duplicate</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setDialog("rename")}>Rename</DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             // The active profile is deleted after switching to another, so one must exist.
             disabled={other === undefined}
             onClick={() => setDialog("delete")}
           >
-            Delete…
+            Delete
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void importProfile()}>Import…</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void exportProfile(active)}>Export…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void importProfile()}>Import</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void exportProfile(active)}>Export</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {error !== null && (
