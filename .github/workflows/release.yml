@@ -16,11 +16,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Check the tag matches apps/desktop/package.json
+      # The app and the engine must both carry the tag's version: after an update the app restarts
+      # an engine whose version differs from the one it ships.
+      - name: Check the tag matches apps/desktop/package.json and Cargo.toml
         run: |
-          version=$(node -p 'require("./apps/desktop/package.json").version')
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::tag $GITHUB_REF_NAME, but apps/desktop/package.json has version $version"
+          app=$(node -p 'require("./apps/desktop/package.json").version')
+          engine=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          if [ "v$app" != "$GITHUB_REF_NAME" ] || [ "v$engine" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, but apps/desktop/package.json has $app and Cargo.toml has $engine"
             exit 1
           fi
       # bsdtar, for electron-builder's pacman package.
@@ -40,4 +43,5 @@ jobs:
             apps/desktop/release/keyrift_*_amd64.deb
             apps/desktop/release/keyrift-*-x86_64.pkg.tar.xz
             apps/desktop/release/Keyrift-*.AppImage
+            apps/desktop/release/latest-linux.yml
           fail_on_unmatched_files: true

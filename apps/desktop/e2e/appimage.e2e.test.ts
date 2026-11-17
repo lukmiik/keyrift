@@ -3,7 +3,7 @@
  * ~/.local/share/keyrift/bin, and that engine runs as a systemd user unit the app connects to.
  *
  * Opt-in, since it needs the built package: `vp run package`, then
- * `KEYRIFT_APPIMAGE=release/Keyrift-0.1.0.AppImage vp test e2e/appimage`.
+ * `KEYRIFT_APPIMAGE=release/Keyrift-<version>.AppImage vp test e2e/appimage`.
  *
  * Safety: the unit has its own name (not keyrift.service) and runs with `--only-device` on a
  * virtual keyboard, an input folder of its own and a private socket, so the user's engine and
