@@ -997,5 +997,5 @@ export interface TapHoldDefaults {
 export interface UiSettings {
   notifyLayerToggle?: boolean;
   physicalLayout?: string;
-  theme?: "system" | "light" | "dark";
+  theme?: ("light" | "dark") | "system";
 }

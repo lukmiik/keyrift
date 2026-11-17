@@ -6,6 +6,7 @@ mod common;
 use std::{
     io::Read,
     process::{Command, Stdio},
+    sync::Mutex,
     thread,
     time::Duration,
 };
@@ -14,9 +15,17 @@ use common::{Engine, uinput_available};
 
 const PASSTHROUGH: &str = r#"{"version":1,"name":"t","layers":[{"id":"base","keys":{}}]}"#;
 
+/// Held by each test for its whole run, so the tests in this file run one at a time. X stops a
+/// key's auto-repeat when other input devices come and go, which the other test's engine and
+/// keyboards do; run in parallel, the repeat test saw too few repeats about once in seven runs.
+static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
+
 /// Every key code the engine can emit arrives unchanged and in order, and nothing stays held.
 #[test]
 fn every_key_passes_through_unchanged_and_in_order() {
+    let _turn = ONE_AT_A_TIME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if !uinput_available() {
         return;
     }
@@ -62,6 +71,9 @@ fn xset_repeat() -> Option<String> {
 /// key presses have no effect on the desktop. Skipped without an X display.
 #[test]
 fn x_auto_repeat_works_through_the_engine() {
+    let _turn = ONE_AT_A_TIME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if !uinput_available() || std::env::var_os("DISPLAY").is_none() {
         return;
     }

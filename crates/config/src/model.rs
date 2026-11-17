@@ -288,7 +288,7 @@ impl Default for UiSettings {
     fn default() -> Self {
         UiSettings {
             physical_layout: default_layout(),
-            theme: Theme::System,
+            theme: Theme::Dark,
             notify_layer_toggle: true,
         }
     }
@@ -297,9 +297,10 @@ impl Default for UiSettings {
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
-    #[default]
+    /// Follows the desktop's light/dark preference.
     System,
     Light,
+    #[default]
     Dark,
 }
 

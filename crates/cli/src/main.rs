@@ -208,7 +208,10 @@ fn status(socket: &Path, as_json: bool) -> Result<ExitCode, String> {
         .filter_map(Value::as_str)
         .collect();
     println!("layers:   {}", layers.join(", "));
-    println!("grabbed:  {} device node(s)", v["devices"]["grabbed"]);
+    println!(
+        "grabbed:  {} keyboard(s), {} device node(s)",
+        v["devices"]["keyboards"], v["devices"]["grabbed"]
+    );
     for b in v["devices"]["blocked"].as_array().into_iter().flatten() {
         println!(
             "blocked:  {} ({})",

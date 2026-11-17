@@ -465,14 +465,23 @@
       },
       "type": "object"
     },
-    "Theme": { "enum": ["system", "light", "dark"], "type": "string" },
+    "Theme": {
+      "oneOf": [
+        { "enum": ["light", "dark"], "type": "string" },
+        {
+          "const": "system",
+          "description": "Follows the desktop's light/dark preference.",
+          "type": "string"
+        }
+      ]
+    },
     "UiSettings": {
       "additionalProperties": false,
       "description": "Settings used only by the GUI.",
       "properties": {
         "notifyLayerToggle": { "default": true, "type": "boolean" },
         "physicalLayout": { "default": "iso-tkl", "type": "string" },
-        "theme": { "$ref": "#/$defs/Theme", "default": "system" }
+        "theme": { "$ref": "#/$defs/Theme", "default": "dark" }
       },
       "type": "object"
     }
@@ -502,7 +511,7 @@
     },
     "ui": {
       "$ref": "#/$defs/UiSettings",
-      "default": { "notifyLayerToggle": true, "physicalLayout": "iso-tkl", "theme": "system" }
+      "default": { "notifyLayerToggle": true, "physicalLayout": "iso-tkl", "theme": "dark" }
     },
     "version": { "default": 1, "format": "uint32", "minimum": 0, "type": "integer" }
   },

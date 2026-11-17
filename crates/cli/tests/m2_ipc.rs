@@ -117,6 +117,7 @@ fn every_method_works() {
     assert_eq!(st["profile"], "test");
     assert_eq!(st["activeLayers"], json!(["base"]));
     assert_eq!(st["devices"]["grabbed"], 1);
+    assert_eq!(st["devices"]["keyboards"], 1);
 
     let d = c.call("devices.list", json!({})).unwrap();
     let g = d["devices"]
@@ -266,8 +267,22 @@ fn every_topic_pushes_events_to_subscribers_only() {
     // status
     c.call("engine.pause", json!({})).unwrap();
     event(&mut c, "status", |d| d["state"] == "paused");
+    event(&mut c, "devices", |d| {
+        !d.to_string().contains(r#""grabbed":true"#)
+    });
     c.call("engine.resume", json!({})).unwrap();
-    event(&mut c, "status", |d| d["state"] == "running");
+    // Subscribers learn that the keyboard is grabbed again, not only that the state changed: the
+    // device list first (from the rescan), then a status that counts the keyboard.
+    event(&mut c, "devices", |d| {
+        d.to_string().contains(r#""grabbed":true"#)
+    });
+    event(&mut c, "status", |d| {
+        d["state"] == "running" && d["devices"]["keyboards"] == 1
+    });
+
+    // The log level is part of the status: changing it sends one.
+    c.call("log.setLevel", json!({ "level": "debug" })).unwrap();
+    event(&mut c, "status", |d| d["logLevel"] == "debug");
 
     // devices
     let _second = common::Source::new(&format!("{}-second", e.id));
@@ -277,6 +292,8 @@ fn every_topic_pushes_events_to_subscribers_only() {
     e.write_profile(r#"{"version":1,"name":"t","layers":[{"id":"base","keys":{}}]}"#);
     let cfg = event(&mut c, "config", |_| true);
     assert_eq!(cfg["ok"], true);
+    // A reload puts back the saved level (info), undoing log.setLevel, and says so.
+    event(&mut c, "status", |d| d["logLevel"] == "info");
     e.write_profile("{");
     let cfg = event(&mut c, "config", |d| d["ok"] == false);
     assert_ne!(cfg["issues"], json!([]));

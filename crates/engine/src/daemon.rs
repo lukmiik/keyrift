@@ -502,6 +502,9 @@ impl Daemon {
     // ---------------------------------------------------------------- devices
 
     fn rescan(&mut self) {
+        // Compared at the end: grabbing or releasing a node changes the list as much as a device
+        // coming or going does (each member's `grabbed` / `blocked`).
+        let before = self.devices_json();
         let groups = devices::group(self.scanner.scan(&self.opts.input_dir));
         let decided: Vec<(Group, Decision)> = groups
             .into_iter()
@@ -591,12 +594,11 @@ impl Daemon {
                 }
             }
         }
-        let changed = self.groups != decided;
         self.groups = decided;
         if let Some(r) = retry {
             self.schedule_rescan(r);
         }
-        if changed {
+        if self.devices_json() != before {
             self.broadcast("devices", self.devices_json());
         }
     }
@@ -699,11 +701,16 @@ impl Daemon {
         }
         self.raw_down.clear();
         self.set_state(state);
+        // The devices are no longer grabbed (the Devices screen shows each one's state).
+        self.broadcast("devices", self.devices_json());
     }
 
     fn resume(&mut self) {
+        // Running first: rescan grabs only while running. The state change already sent a status
+        // event, from before the grab, so send one more that counts the grabbed keyboards.
         self.set_state(State::Running);
         self.rescan();
+        self.broadcast("status", self.status());
     }
 
     // ----------------------------------------------------------------- config
@@ -727,7 +734,11 @@ impl Daemon {
         let devices_changed = self.settings.devices != loaded.settings.devices;
         self.settings = loaded.settings;
         self.profile_name = loaded.profile_name;
+        // A reload puts back the saved level, undoing a `log.setLevel`; clients show the level from
+        // the status, so tell them when it changed.
+        let level_before = self.opts.log.level();
         self.opts.log.set_level(self.settings.log_level);
+        let level_changed = self.opts.log.level() != level_before;
         self.pending_keymap = Some((loaded.keymap, Instant::now() + RELOAD_MAX_WAIT));
         info!("config loaded (profile `{}`)", self.profile_name);
         self.broadcast("config", json!({ "ok": true, "issues": self.issues }));
@@ -737,6 +748,9 @@ impl Daemon {
             self.rescan();
         } else if devices_changed {
             self.rescan();
+        }
+        if level_changed {
+            self.broadcast("status", self.status());
         }
     }
 
@@ -764,6 +778,17 @@ impl Daemon {
 
     fn status(&self) -> Value {
         let grabbed = self.handles.len();
+        // Physical keyboards with at least one grabbed node: one keyboard can have several nodes
+        // (e.g. a consumer-control node for media keys, F-DEV-2), so `grabbed` alone overcounts.
+        let keyboards = self
+            .groups
+            .iter()
+            .filter(|(g, _)| {
+                g.members
+                    .iter()
+                    .any(|m| self.handles.iter().any(|h| h.path == m.path))
+            })
+            .count();
         json!({
             "state": self.state,
             "engineVersion": env!("CARGO_PKG_VERSION"),
@@ -775,6 +800,7 @@ impl Daemon {
             "logLevel": self.opts.log.level(),
             "devices": {
                 "grabbed": grabbed,
+                "keyboards": keyboards,
                 "blocked": self.blocked.iter().map(|(p, m)| json!({ "path": p, "reason": m })).collect::<Vec<_>>(),
             },
             "outputDevice": self.vk.node(),
@@ -903,6 +929,9 @@ impl Daemon {
                     })?;
                 self.opts.log.set_level(level);
                 info!("log level set to {}", level.as_str());
+                // The level is part of the status; other clients (and this one's other screens)
+                // learn about the change from this event.
+                self.broadcast("status", self.status());
                 Ok(json!({ "level": level.as_str() }))
             }
             "record.start" => {
