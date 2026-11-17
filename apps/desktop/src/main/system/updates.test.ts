@@ -79,6 +79,26 @@ describe("UpdateControl", () => {
       status: "error",
       message: "Couldn't reach GitHub. Check the internet connection.",
     });
+    // GitHub's 404 text mentions an "authentication token"; it is not an install failure.
+    updater.emit(
+      "error",
+      new Error(
+        'HttpError: 404 \n"method: GET url: https://github.com/lukmiik/keyrift/releases.atom\n\nPlease double check that your authentication token is correct."',
+      ),
+    );
+    expect(status()).toEqual({
+      status: "error",
+      message: "Couldn't find Keyrift's releases on GitHub.",
+    });
+  });
+
+  it("blames the install only when installing failed", async () => {
+    const { updater, control, status } = setup();
+    await control.check();
+    updater.emit("update-available", { version: "0.2.0" });
+    await control.download();
+    updater.emit("update-downloaded", { version: "0.2.0" });
+    control.install();
     updater.emit(
       "error",
       new Error("Command failed: pkexec /bin/bash -c 'dpkg -i …' (exit code 126)"),

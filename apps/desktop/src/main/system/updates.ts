@@ -58,7 +58,10 @@ export class UpdateControl {
     updater?.on("update-downloaded", (info) =>
       this.#set({ status: "ready", version: info.version }),
     );
-    updater?.on("error", (error) => this.#set({ status: "error", message: describe(error) }));
+    // Installing runs only from "ready"; any other error is about checking or downloading.
+    updater?.on("error", (error) =>
+      this.#set({ status: "error", message: describe(error, this.#state.status === "ready") }),
+    );
   }
 
   info(): UpdateInfo {
@@ -97,14 +100,21 @@ export class UpdateControl {
   }
 }
 
-/** A short message for the page; electron-updater's errors can carry whole HTTP responses. */
-function describe(error: Error): string {
+/**
+ * A short message for the page; electron-updater's errors can carry whole HTTP responses, whose text
+ * mentions things like "authentication token" even when nothing was installed.
+ */
+function describe(error: Error, installing: boolean): string {
   const firstLine = error.message.split("\n")[0] ?? "";
-  if (/pkexec|dpkg|pacman|authentication|exit code|status 12[67]/i.test(error.message)) {
+  if (installing) {
     return "Installing failed or the password prompt was closed; nothing was changed.";
   }
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|net::/i.test(error.message)) {
     return "Couldn't reach GitHub. Check the internet connection.";
+  }
+  // GitHub answers 404 for a missing or private repository's releases.
+  if (/HttpError: 404|status(Code)?:? 404/i.test(error.message)) {
+    return "Couldn't find Keyrift's releases on GitHub.";
   }
   return firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;
 }
