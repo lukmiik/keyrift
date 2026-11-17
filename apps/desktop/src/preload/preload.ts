@@ -60,6 +60,8 @@ const api: KeyriftApi = {
     onDarkChange: (listener: (dark: boolean) => void) => listen("system:dark-changed", listener),
     autostart: () => ipcRenderer.invoke("system:autostart"),
     setAutostart: (enabled) => ipcRenderer.invoke("system:set-autostart", enabled),
+    tray: () => ipcRenderer.invoke("system:tray"),
+    setTray: (enabled) => ipcRenderer.invoke("system:set-tray", enabled),
   },
   setup: {
     checks: () => ipcRenderer.invoke("setup:checks"),

@@ -135,7 +135,7 @@ export type SystemOutcome<T> = { ok: true; value: T } | { ok: false; message: st
 /** `settings.ui.theme`: "system" follows the desktop's light/dark preference. */
 export type Theme = NonNullable<NonNullable<Settings["ui"]>["theme"]>;
 
-/** The system around the app: the engine's systemd unit and the window's light/dark theme. */
+/** The system around the app: the engine's systemd unit, the window's light/dark theme and the tray. */
 export type SystemApi = {
   /** Whether the window should be dark: the theme setting, or for "system" the desktop's. */
   dark(): Promise<boolean>;
@@ -147,6 +147,13 @@ export type SystemApi = {
    * state; a running engine keeps running.
    */
   setAutostart(enabled: boolean): Promise<SystemOutcome<Autostart>>;
+  /**
+   * "Show in the tray": whether closing the window keeps Keyrift running in the tray, and it starts
+   * there at login (a login entry in ~/.config/autostart).
+   */
+  tray(): Promise<SystemOutcome<boolean>>;
+  /** Turns it on or off; answers with the new value. */
+  setTray(enabled: boolean): Promise<SystemOutcome<boolean>>;
 };
 
 /** One entry of the engine's log, from journald (spec §7.3 Logs). */

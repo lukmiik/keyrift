@@ -176,7 +176,7 @@ export function SettingsScreen({
         <AutostartRow system={system} />
         <Row
           label="Layer notifications"
-          help="Show a notification when a layer that a key toggles turns on or off."
+          help="Show a notification when a layer that a key toggles turns on or off, while Keyrift runs."
         >
           {(id) => (
             <Switch
@@ -186,6 +186,7 @@ export function SettingsScreen({
             />
           )}
         </Row>
+        <TrayRow system={system} />
       </Group>
 
       <Group
@@ -523,6 +524,52 @@ function AutostartRow({ system }: { system: SystemApi }) {
             disabled={state === "not-installed"}
             onCheckedChange={(enabled) => void set(enabled)}
           />
+        )
+      }
+    </Row>
+  );
+}
+
+/**
+ * "Show in the tray": on, closing the window keeps Keyrift in the tray and it starts there at login;
+ * off, closing the window quits it.
+ */
+function TrayRow({ system }: { system: SystemApi }) {
+  const [shown, setShown] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void system.tray().then((outcome) => {
+      if (!active) return;
+      if (outcome.ok) setShown(outcome.value);
+      else setError(outcome.message);
+    });
+    return () => {
+      active = false;
+    };
+  }, [system]);
+
+  async function set(enabled: boolean): Promise<void> {
+    const outcome = await system.setTray(enabled);
+    if (outcome.ok) {
+      setShown(outcome.value);
+      setError(null);
+    } else {
+      setError(outcome.message);
+    }
+  }
+
+  const help =
+    "Keep Keyrift running in the tray after you close its window, and start it there when you log in. Off: closing the window quits Keyrift; the engine keeps remapping.";
+  return (
+    <Row label="Show in the tray" help={error === null ? help : `Couldn't change it: ${error}`}>
+      {(id) =>
+        // As for autostart: empty space until the answer, so the switch doesn't slide on opening.
+        shown === null ? (
+          <div className="h-5 w-9" />
+        ) : (
+          <Switch id={id} checked={shown} onCheckedChange={(enabled) => void set(enabled)} />
         )
       }
     </Row>

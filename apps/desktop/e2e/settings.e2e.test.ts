@@ -105,6 +105,29 @@ describe.skipIf(!uinputAvailable())("Settings", () => {
     await expect.poll(darkClass).toBe(true);
   });
 
+  it("quits when the window closes, unless it shows in the tray", { timeout: 60_000 }, async () => {
+    const engine = await TestEngine.start();
+    cleanup.push(() => engine.stop());
+    const app = await TestApp.start({ socketPath: engine.socketPath, configDir: engine.configDir });
+    cleanup.push(() => app.close());
+    const w = app.window;
+    await w.getByRole("button", { name: "Settings" }).click();
+    const tray = w.getByRole("switch", { name: "Show in the tray" });
+    expect(await tray.getAttribute("aria-checked")).toBe("false");
+    expect((await app.trayState()).icon).toBe(false);
+
+    await tray.click();
+    await expect.poll(() => app.loginEntry()).toMatch(/^Exec=.* --hidden$/m);
+    expect((await app.trayState()).icon).toBe(true);
+    expect(await app.closeWindow()).toBe("hidden");
+
+    // Off again (the hidden page still answers): the login entry goes, and closing quits.
+    await tray.click();
+    await expect.poll(() => app.loginEntry()).toBeNull();
+    expect((await app.trayState()).icon).toBe(false);
+    expect(await app.closeWindow()).toBe("quit");
+  });
+
   it("updates the app through the updater", { timeout: 60_000 }, async () => {
     const engine = await TestEngine.start();
     cleanup.push(() => engine.stop());

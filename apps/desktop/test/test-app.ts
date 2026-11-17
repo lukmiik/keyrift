@@ -6,7 +6,7 @@
  * data in a temp folder and its window hidden. Together with TestEngine this never touches the
  * user's engine, config or screen.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -68,6 +68,8 @@ export class TestApp {
         // Nor the user's desktop theme: a fake gsettings, light unless FAKE_COLOR_SCHEME says dark.
         KEYRIFT_GSETTINGS: join(APP_DIR, "test/fake-gsettings.mjs"),
         KEYRIFT_SETUP_FAKE: systemFile,
+        // Nor the user's login: "Show in the tray" writes its login entry here.
+        KEYRIFT_AUTOSTART_DIR: join(dataDir, "autostart"),
         ...options.env,
       },
     });
@@ -112,9 +114,40 @@ export class TestApp {
     }, paths);
   }
 
+  /** The login entry that "Show in the tray" wrote, or null without one. */
+  loginEntry(): string | null {
+    const file = join(this.#dataDir, "autostart/keyrift.desktop");
+    return existsSync(file) ? readFileSync(file, "utf8") : null;
+  }
+
+  /**
+   * Closes the window as the user would, and says what the app did: hid the window and kept
+   * running, or quit.
+   */
+  async closeWindow(): Promise<"hidden" | "quit"> {
+    const exited = new Promise<"quit">((resolve) =>
+      this.#app.process().once("exit", () => resolve("quit")),
+    );
+    await this.#app
+      .evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.close())
+      // The app may quit before answering.
+      .catch(() => undefined);
+    const stillOpen = new Promise<"hidden">((resolve) =>
+      setTimeout(() => resolve("hidden"), 2_000),
+    );
+    const result = await Promise.race([exited, stillOpen]);
+    if (result === "quit") return result;
+    const windows = await this.#app.evaluate(
+      ({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed()).length,
+    );
+    return windows === 1 ? "hidden" : "quit";
+  }
+
   /** Closes the app and deletes its data folder. */
   async close(): Promise<void> {
-    await this.#app.close();
+    // Already gone when the test closed its window without the tray.
+    if (this.#app.process().exitCode === null) await this.#app.close();
     rmSync(this.#dataDir, { recursive: true, force: true });
   }
 }

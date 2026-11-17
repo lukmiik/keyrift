@@ -1,6 +1,6 @@
 /**
- * A stand-in for `window.keyrift.system` in component tests: the unit's autostart state lives in
- * memory, and every change is recorded.
+ * A stand-in for `window.keyrift.system` in component tests: the unit's autostart state and the
+ * tray setting live in memory, and every change is recorded.
  */
 import type { Autostart, SystemApi, SystemOutcome } from "../../shared/api.ts";
 
@@ -12,6 +12,9 @@ export class FakeSystem implements SystemApi {
   readonly autostartChanges: boolean[] = [];
   /** Set to make `setAutostart` fail with this message. */
   failWith: string | null = null;
+  trayState = false;
+  /** Every `setTray`, in order. */
+  readonly trayChanges: boolean[] = [];
 
   dark(): Promise<boolean> {
     return Promise.resolve(this.isDark);
@@ -37,5 +40,16 @@ export class FakeSystem implements SystemApi {
     this.autostartChanges.push(enabled);
     this.autostartState = enabled ? "enabled" : "disabled";
     return Promise.resolve({ ok: true, value: this.autostartState });
+  }
+
+  tray(): Promise<SystemOutcome<boolean>> {
+    return Promise.resolve({ ok: true, value: this.trayState });
+  }
+
+  setTray(enabled: boolean): Promise<SystemOutcome<boolean>> {
+    if (this.failWith !== null) return Promise.resolve({ ok: false, message: this.failWith });
+    this.trayChanges.push(enabled);
+    this.trayState = enabled;
+    return Promise.resolve({ ok: true, value: enabled });
   }
 }

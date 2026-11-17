@@ -4,8 +4,9 @@
  * engine, or quits the GUI. When a toggled layer turns on or off, a desktop notification says so
  * (Settings: "Layer notifications").
  *
- * Main follows the engine itself (status and layer topics), so the tray stays right while the
- * window is hidden. In GUI tests (`headless`) nothing appears on the user's screen: no tray icon,
+ * The icon is there only with "Show in the tray" on (system/tray-setting.ts); the notifications
+ * come whenever the app runs. Main follows the engine itself (status and layer topics), so both stay
+ * right while the window is hidden. In GUI tests (`headless`) nothing appears on the user's screen: no tray icon,
  * no notifications; tests read the view and the notifications through `TrayState` instead.
  */
 import { join } from "node:path";
@@ -29,7 +30,12 @@ import {
 const RESOURCES = join(import.meta.dirname, "../resources");
 
 /** What the tray shows and what it notified, for GUI tests. */
-export type TrayState = { view: TrayView; notifications: string[] };
+export type TrayState = {
+  view: TrayView;
+  notifications: string[];
+  /** Whether the icon is shown (in GUI tests no icon appears, but this says if it would). */
+  icon: boolean;
+};
 
 export class KeyriftTray {
   readonly #connection: EngineConnection;
@@ -37,6 +43,7 @@ export class KeyriftTray {
   readonly #open: () => void;
   readonly #quit: () => void;
   readonly #headless: boolean;
+  #iconShown: boolean;
   #tray: Tray | null = null;
   #status: Status | null = null;
   #names: LayerNames = new Map();
@@ -56,21 +63,20 @@ export class KeyriftTray {
     /** Quits the GUI (the engine keeps running). */
     quit: () => void;
     headless: boolean;
+    /** Whether the icon is shown at the start ("Show in the tray"). */
+    icon: boolean;
   }) {
     this.#connection = options.connection;
     this.#files = options.files;
     this.#open = options.open;
     this.#quit = options.quit;
     this.#headless = options.headless;
+    this.#iconShown = options.icon;
     this.view = trayView(this.#connection.state, null, this.#names);
   }
 
   start(): void {
-    if (!this.#headless) {
-      this.#tray = new Tray(this.#image());
-      // A left click opens the window (where the tray supports clicks; the menu always works).
-      this.#tray.on("click", this.#open);
-    }
+    this.#createIcon();
     this.#connection.onStateChange((state) => void this.#onState(state));
     this.#connection.onEvent((event) => {
       if (event.event === "status") this.#setStatus(event.data);
@@ -83,6 +89,24 @@ export class KeyriftTray {
       }
     });
     void this.#onState(this.#connection.state);
+  }
+
+  /** Shows or removes the icon, when "Show in the tray" changes. */
+  showIcon(shown: boolean): void {
+    this.#iconShown = shown;
+    if (shown) this.#createIcon();
+    else {
+      this.#tray?.destroy();
+      this.#tray = null;
+    }
+  }
+
+  #createIcon(): void {
+    if (this.#headless || !this.#iconShown || this.#tray !== null) return;
+    this.#tray = new Tray(this.#image());
+    // A left click opens the window (where the tray supports clicks; the menu always works).
+    this.#tray.on("click", this.#open);
+    this.#render();
   }
 
   async #onState(state: ConnectionState): Promise<void> {
@@ -164,7 +188,7 @@ export class KeyriftTray {
 
   /** What the tray shows and notified, for GUI tests. */
   state(): TrayState {
-    return { view: this.view, notifications: [...this.notifications] };
+    return { view: this.view, notifications: [...this.notifications], icon: this.#iconShown };
   }
 
   destroy(): void {

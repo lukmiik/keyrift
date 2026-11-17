@@ -26,6 +26,8 @@
  * - "system:dark-changed"  main → every page, send: (dark)
  * - "system:autostart"     page → main, invoke: () → SystemOutcome<Autostart>
  * - "system:set-autostart" page → main, invoke: (enabled) → SystemOutcome<Autostart>
+ * - "system:tray"          page → main, invoke: () → SystemOutcome<boolean>
+ * - "system:set-tray"      page → main, invoke: (enabled) → SystemOutcome<boolean>
  * - "setup:checks"     page → main, invoke: () → SetupCheck[]
  * - "setup:fix"        page → main, invoke: (SetupFix) → SystemOutcome<null>
  * - "setup:first-run"  page → main, invoke: () → boolean
@@ -53,6 +55,7 @@ import { JournalFollower } from "./logs/journal.ts";
 import type { AutostartControl } from "./system/autostart.ts";
 import type { SetupControl } from "./setup/setup.ts";
 import type { ThemeControl } from "./system/theme.ts";
+import type { TraySetting } from "./system/tray-setting.ts";
 import type { UpdateControl } from "./system/updates.ts";
 
 /** Sends a message to the page in every open window. */
@@ -149,11 +152,17 @@ export function registerConfigIpc(files: ConfigFiles, onSettingsSaved: () => voi
   });
 }
 
-/** Autostart of the engine's unit and the light/dark theme (Settings screen). */
-export function registerSystemIpc(autostart: AutostartControl, theme: ThemeControl): void {
+/** Autostart of the engine's unit, the light/dark theme and the tray setting (Settings screen). */
+export function registerSystemIpc(
+  autostart: AutostartControl,
+  theme: ThemeControl,
+  tray: TraySetting,
+): void {
   ipcMain.handle("system:dark", () => theme.dark);
   ipcMain.handle("system:autostart", () => autostart.state());
   ipcMain.handle("system:set-autostart", (_event, enabled: unknown) => autostart.set(enabled));
+  ipcMain.handle("system:tray", () => tray.state());
+  ipcMain.handle("system:set-tray", (_event, enabled: unknown) => tray.set(enabled));
 }
 
 /**

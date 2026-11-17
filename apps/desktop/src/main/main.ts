@@ -2,7 +2,8 @@
  * Electron main process: the app's entry point (architecture §3). Runs in Node, owns the window and
  * the tray icon, and talks to the engine. Built to `dist-electron/main.js`.
  *
- * Closing the window hides it; the app keeps running in the tray until "Quit Keyrift" there.
+ * Closing the window quits the app (the engine keeps remapping), unless "Show in the tray" is on:
+ * then it hides, and the app keeps running in the tray until "Quit Keyrift" there.
  */
 import { join } from "node:path";
 
@@ -33,6 +34,7 @@ import {
   restartIfOutdated,
 } from "./system/engine-binary.ts";
 import { ThemeControl } from "./system/theme.ts";
+import { defaultAutostartDir, HIDDEN_FLAG, TraySetting } from "./system/tray-setting.ts";
 import { fakeUpdater, UpdateControl } from "./system/updates.ts";
 import { KeyriftTray } from "./tray/tray.ts";
 
@@ -136,7 +138,26 @@ function createUpdates(): UpdateControl {
   return new UpdateControl(current, autoUpdater, "", changed);
 }
 
-/** The main window; null before it opens. Hidden, not closed, when the user closes it. */
+/** How the login entry starts this app: the AppImage, the packaged app, or Electron with this folder. */
+function hiddenCommand(): string[] {
+  if (process.env.APPIMAGE !== undefined) return [process.env.APPIMAGE, HIDDEN_FLAG];
+  if (app.isPackaged) return [process.execPath, HIDDEN_FLAG];
+  return [process.execPath, app.getAppPath(), HIDDEN_FLAG];
+}
+
+// KEYRIFT_AUTOSTART_DIR: another folder for the login entry, so GUI tests never add one to the
+// user's login.
+const traySetting = new TraySetting(
+  process.env.KEYRIFT_AUTOSTART_DIR ?? defaultAutostartDir(),
+  hiddenCommand(),
+  (enabled) => tray.showIcon(enabled),
+);
+
+// Started by the login entry: only the tray icon, the window opens from it. Without the setting
+// (the entry was removed by hand while this started), the window shows, or nothing would.
+const startHidden = process.argv.includes(HIDDEN_FLAG) && traySetting.enabled;
+
+/** The main window; null before it opens, and after it closed. */
 let mainWindow: BrowserWindow | null = null;
 /** Set when the app is really quitting, so closing the window doesn't just hide it. */
 let quitting = false;
@@ -148,6 +169,7 @@ const tray = new KeyriftTray({
   quit: () => app.quit(),
   // GUI tests: no tray icon or notifications on the user's screen.
   headless: hideWindow,
+  icon: traySetting.enabled,
 });
 
 // GUI tests read the tray's state through Playwright's `app.evaluate` (test/test-app.ts).
@@ -174,7 +196,7 @@ function createWindow(): void {
     title: "Keyrift",
     // The window's icon (title bar, Alt+Tab). Rendered from resources/icon.svg.
     icon: join(import.meta.dirname, "../resources/icon.png"),
-    show: !hideWindow,
+    show: !hideWindow && !startHidden,
     // The page's background (--background in index.css) in the current theme, shown before the
     // page has loaded so the window doesn't flash the other colour.
     backgroundColor: theme.dark ? "#0a0a0a" : "#ffffff",
@@ -193,10 +215,11 @@ function createWindow(): void {
   });
 
   mainWindow = window;
-  // Closing the window hides it to the tray; the page keeps running, so reopening is instant and
-  // keeps its state (open screen, undo history).
+  // With the tray on, closing the window hides it; the page keeps running, so reopening is instant
+  // and keeps its state (open screen, undo history). Otherwise it closes, and with the last window
+  // closed Electron quits the app.
   window.on("close", (event) => {
-    if (quitting) return;
+    if (quitting || !traySetting.enabled) return;
     event.preventDefault();
     window.hide();
   });
@@ -236,7 +259,8 @@ void app.whenReady().then(async () => {
   registerLogsIpc(process.env.KEYRIFT_JOURNALCTL ?? "journalctl");
   // KEYRIFT_SYSTEMCTL: a fake systemctl in GUI tests, so they never enable or disable the real unit.
   const autostart = new AutostartControl(process.env.KEYRIFT_SYSTEMCTL ?? "systemctl");
-  registerSystemIpc(autostart, theme);
+  registerSystemIpc(autostart, theme, traySetting);
+  await traySetting.refresh();
   registerSetupIpc(createSetup(autostart, await engineCli()));
   const updates = createUpdates();
   registerUpdatesIpc(updates);

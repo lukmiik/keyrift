@@ -120,6 +120,20 @@ describe("SettingsScreen", () => {
     expect(screen.getByText("Couldn't change it: Access denied")).toBeDefined();
   });
 
+  it("turns the tray on and off", async () => {
+    const { system, user } = await openSettings();
+    const toggle = await screen.findByRole("switch", { name: "Show in the tray" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    await user.click(toggle);
+    expect(system.trayChanges).toEqual([true, false]);
+
+    system.failWith = "read-only folder";
+    await user.click(toggle);
+    expect(screen.getByText("Couldn't change it: read-only folder")).toBeDefined();
+  });
+
   it("shows the save problem", async () => {
     const config = new FakeConfig();
     config.saveProblem = { file: "settings.json", message: "cannot write", issues: [] };
