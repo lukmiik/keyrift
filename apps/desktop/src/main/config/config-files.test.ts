@@ -6,6 +6,7 @@ import type { Profile } from "@keyrift/config-types";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { TestEngine } from "../../../test/test-engine.ts";
+import { uinputAvailable } from "../../../test/test-keyboard.ts";
 import type { EngineEvent } from "../../shared/protocol.ts";
 import { ConfigFiles, isProfileName } from "./config-files.ts";
 
@@ -30,6 +31,9 @@ function put(dir: string, file: string, text: string): void {
   mkdirSync(join(dir, file, ".."), { recursive: true });
   writeFileSync(join(dir, file), text);
 }
+
+// The engine needs a writable /dev/uinput (GitHub's runners have none).
+const withEngine = it.skipIf(!uinputAvailable());
 
 const KBD = { vendorId: "0x0951", productId: "0x16d2", name: "HyperX Alloy" };
 
@@ -142,7 +146,7 @@ describe("ConfigFiles", () => {
       expect(readdirSync(dir)).toEqual([]);
     });
 
-    it("is applied by a running engine", { timeout: 300_000 }, async () => {
+    withEngine("is applied by a running engine", { timeout: 300_000 }, async () => {
       const engine = await TestEngine.start();
       cleanup.push(() => engine.stop());
       const client = await engine.connect();
@@ -252,7 +256,7 @@ describe("ConfigFiles", () => {
       expect(readFileSync(join(dir, "settings.json"), "utf8")).toBe("{ not json");
     });
 
-    it("is applied by a running engine", { timeout: 300_000 }, async () => {
+    withEngine("is applied by a running engine", { timeout: 300_000 }, async () => {
       const engine = await TestEngine.start();
       cleanup.push(() => engine.stop());
       const client = await engine.connect();

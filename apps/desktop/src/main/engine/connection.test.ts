@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { TestEngine } from "../../../test/test-engine.ts";
+import { uinputAvailable } from "../../../test/test-keyboard.ts";
 import type { ConnectionState } from "../../shared/api.ts";
 import { EngineConnection } from "./connection.ts";
 
@@ -55,8 +56,11 @@ function connect(socketPath: string): EngineConnection {
   return connection;
 }
 
+// The engine needs a writable /dev/uinput (GitHub's runners have none).
+const withEngine = it.skipIf(!uinputAvailable());
+
 describe("EngineConnection", () => {
-  it("connects and calls the engine", { timeout: 300_000 }, async () => {
+  withEngine("connects and calls the engine", { timeout: 300_000 }, async () => {
     const engine = await TestEngine.start();
     cleanup.push(() => engine.stop());
     const connection = connect(engine.socketPath);
@@ -67,7 +71,7 @@ describe("EngineConnection", () => {
     expect(outcome).toMatchObject({ ok: true, result: { profile: "test" } });
   });
 
-  it("returns engine errors as data, keeping the code", async () => {
+  withEngine("returns engine errors as data, keeping the code", async () => {
     const engine = await TestEngine.start();
     cleanup.push(() => engine.stop());
     const connection = connect(engine.socketPath);
@@ -86,7 +90,7 @@ describe("EngineConnection", () => {
     expect(outcome).toMatchObject({ ok: false, error: { code: "not_connected" } });
   });
 
-  it("connects once the engine starts, and notices when it stops", async () => {
+  withEngine("connects once the engine starts, and notices when it stops", async () => {
     const dir = tempDir();
     const connection = connect(join(dir, "keyrift.sock"));
     await waitForState(connection, isDisconnected);

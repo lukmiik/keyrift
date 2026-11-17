@@ -13,8 +13,13 @@ fn udev_rule_passes_udevadm_verify() {
     let text = fs::read_to_string(&rule).unwrap();
     assert!(text.contains(r#"KERNEL=="uinput""#) && text.contains(r#"GROUP="uinput""#));
     assert!(text.contains(r#"KERNEL=="event*""#) && text.contains(r#"GROUP="input""#));
-    // `udevadm verify` exists since systemd 253.
-    let Ok(o) = Command::new("udevadm").arg("verify").arg(&rule).output() else {
+    // `udevadm verify` exists since systemd 253. `--resolve-names=never`: check the rule, not
+    // whether this machine has the groups yet (they are created when the package is installed).
+    let Ok(o) = Command::new("udevadm")
+        .args(["verify", "--resolve-names=never"])
+        .arg(&rule)
+        .output()
+    else {
         return;
     };
     let out = format!(

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { TestEngine } from "../../../test/test-engine.ts";
+import { uinputAvailable } from "../../../test/test-keyboard.ts";
 import { EngineClient, EngineError } from "./client.ts";
 import type { EngineEvent, LogLevel } from "../../shared/protocol.ts";
 
@@ -25,17 +26,18 @@ function nextEvent(client: EngineClient, name: EngineEvent["event"]): Promise<un
 let engine: TestEngine;
 let client: EngineClient;
 
-beforeAll(async () => {
-  engine = await TestEngine.start();
-  client = await engine.connect();
-}, 300_000); // the first run may have to build the engine
+// The engine needs a writable /dev/uinput (GitHub's runners have none).
+describe.skipIf(!uinputAvailable())("EngineClient", () => {
+  beforeAll(async () => {
+    engine = await TestEngine.start();
+    client = await engine.connect();
+  }, 300_000); // the first run may have to build the engine
 
-afterAll(async () => {
-  await client.close();
-  await engine.stop();
-});
+  afterAll(async () => {
+    await client.close();
+    await engine.stop();
+  });
 
-describe("EngineClient", () => {
   it("says hello and gets the engine's version", async () => {
     const { client: other, hello } = await EngineClient.connect(engine.socketPath);
     expect(hello.protocolVersion).toBe("1.0");
