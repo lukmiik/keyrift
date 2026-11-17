@@ -417,7 +417,7 @@ describe("ConfigFiles", () => {
       expect(await files.activeProfile()).toEqual({ ok: true, value: "work" });
     });
 
-    it("switches the running engine to another profile", { timeout: 300_000 }, async () => {
+    withEngine("switches the running engine to another profile", { timeout: 300_000 }, async () => {
       const engine = await TestEngine.start();
       cleanup.push(() => engine.stop());
       const client = await engine.connect();
