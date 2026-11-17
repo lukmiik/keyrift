@@ -65,8 +65,9 @@ Keyrift is meant for you.
   detected and left alone.
 - **Logs** from the engine with a level filter, and **Settings** for autostart, theme, layout and
   layer notifications.
-- **Tray icon** that shows whether remapping is active and which layers are on, with a notification
-  when a toggle layer changes.
+- **Tray icon**, if you want one: it shows whether remapping is active and which layers are on, and
+  a notification says when a toggle layer changes. Turn on **Show in the tray** in Settings and
+  Keyrift starts there at login; otherwise closing the window quits it and the engine keeps remapping.
 - **Setup wizard** that checks permissions, groups, the uinput module and competing remappers, and
   fixes what it can with a single password prompt.
 - **Updates** from Settings: check, download and install a new version without leaving the app.
