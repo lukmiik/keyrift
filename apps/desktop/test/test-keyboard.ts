@@ -25,7 +25,10 @@ function helperBinary(): string {
   return join(REPO_DIR, "target/debug/keyrift-test-keyboard");
 }
 
-/** Whether this user may create virtual keyboards (member of the `uinput` group). */
+/**
+ * Whether this user may create virtual keyboards (member of the `uinput` group). The engine needs
+ * this too, for its output keyboard: GUI tests that start a TestEngine skip without it (CI runners).
+ */
 export function uinputAvailable(): boolean {
   try {
     accessSync("/dev/uinput", constants.W_OK);

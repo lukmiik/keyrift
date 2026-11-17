@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { TestApp } from "../test/test-app.ts";
 import { TestEngine } from "../test/test-engine.ts";
+import { uinputAvailable } from "../test/test-keyboard.ts";
 
 const BASELINE = join(import.meta.dirname, "../../../examples/config/profiles/daily.json");
 
@@ -76,7 +77,7 @@ class KeymapDriver {
   }
 }
 
-describe("baseline profile", () => {
+describe.skipIf(!uinputAvailable())("baseline profile", () => {
   it("is rebuilt in the GUI from an empty config", { timeout: 180_000 }, async () => {
     const engine = await TestEngine.start({ empty: true });
     cleanup.push(() => engine.stop());

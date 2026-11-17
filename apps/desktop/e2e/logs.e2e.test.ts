@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { TestApp } from "../test/test-app.ts";
 import { TestEngine } from "../test/test-engine.ts";
+import { uinputAvailable } from "../test/test-keyboard.ts";
 
 let cleanup: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
@@ -31,7 +32,7 @@ function entry(cursor: string, priority: number, message: string, identifier = "
   });
 }
 
-describe("Logs", () => {
+describe.skipIf(!uinputAvailable())("Logs", () => {
   it("shows journal entries and filters them by level", { timeout: 60_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "keyrift-logs-"));
     cleanup.push(() => rmSync(dir, { recursive: true, force: true }));

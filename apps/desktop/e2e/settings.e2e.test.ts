@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { TestApp } from "../test/test-app.ts";
 import { TestEngine } from "../test/test-engine.ts";
+import { uinputAvailable } from "../test/test-keyboard.ts";
 
 let cleanup: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
@@ -19,7 +20,7 @@ afterEach(async () => {
   cleanup = [];
 });
 
-describe("Settings", () => {
+describe.skipIf(!uinputAvailable())("Settings", () => {
   it("saves each setting and applies it", { timeout: 60_000 }, async () => {
     const engine = await TestEngine.start();
     cleanup.push(() => engine.stop());

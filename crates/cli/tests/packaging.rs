@@ -55,6 +55,10 @@ fn unit_template_matches_spec() {
         .output()
     {
         let err = String::from_utf8_lossy(&o.stderr);
+        // No user service manager to verify against (CI runners, containers): skip that part.
+        if err.contains("Failed to initialize manager") {
+            return;
+        }
         // The binary path need not exist on the build machine.
         let real: Vec<&str> = err
             .lines()

@@ -11,6 +11,7 @@ import { watchReloads } from "../test/config-reloads.ts";
 import { TestApp } from "../test/test-app.ts";
 import type { Status } from "../src/shared/protocol.ts";
 import { TestEngine } from "../test/test-engine.ts";
+import { uinputAvailable } from "../test/test-keyboard.ts";
 
 // Everything a test starts, stopped after it even when it fails.
 let cleanup: (() => Promise<void>)[] = [];
@@ -30,7 +31,7 @@ async function startAppWithEngine(profile?: object): Promise<{ app: TestApp; eng
   return { app, engine };
 }
 
-describe("engine control and profile menu", () => {
+describe.skipIf(!uinputAvailable())("engine control and profile menu", () => {
   it("show the engine's state and profile", { timeout: 300_000 }, async () => {
     const { app } = await startAppWithEngine();
     const panel = app.window.getByRole("region", { name: "Engine" });
@@ -82,7 +83,7 @@ describe("engine control and profile menu", () => {
   });
 });
 
-describe("versions line", () => {
+describe.skipIf(!uinputAvailable())("versions line", () => {
   it("shows the Electron version from the preload", async () => {
     const { app } = await startAppWithEngine();
 
@@ -96,7 +97,7 @@ describe("versions line", () => {
   });
 });
 
-describe("keymap screen", () => {
+describe.skipIf(!uinputAvailable())("keymap screen", () => {
   it("shows the layers of the engine's active profile", async () => {
     const { app } = await startAppWithEngine({
       version: 1,
@@ -152,7 +153,7 @@ describe("keymap screen", () => {
   );
 });
 
-describe("devices screen", () => {
+describe.skipIf(!uinputAvailable())("devices screen", () => {
   it("enables a remembered keyboard again", async () => {
     const { app, engine } = await startAppWithEngine();
     // An excluded keyboard that isn't plugged in. The test engine sees no devices at all.
@@ -193,7 +194,7 @@ async function waitForEngine(engine: TestEngine, check: (status: Status) => bool
   }
 }
 
-describe("profile menu", () => {
+describe.skipIf(!uinputAvailable())("profile menu", () => {
   it(
     "creates, renames and deletes a profile, and the engine follows",
     { timeout: 60_000 },

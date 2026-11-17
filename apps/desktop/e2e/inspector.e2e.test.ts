@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { watchReloads } from "../test/config-reloads.ts";
 import { TestApp } from "../test/test-app.ts";
 import { TestEngine } from "../test/test-engine.ts";
+import { uinputAvailable } from "../test/test-keyboard.ts";
 
 let cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -28,7 +29,7 @@ const PROFILE = {
   ],
 };
 
-describe("inspector", () => {
+describe.skipIf(!uinputAvailable())("inspector", () => {
   it(
     "sets one key per action type; the engine accepts each save",
     { timeout: 90_000 },
