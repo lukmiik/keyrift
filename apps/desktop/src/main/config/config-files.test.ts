@@ -398,6 +398,65 @@ describe("ConfigFiles", () => {
       });
     });
 
+    it("exports a profile to any file", async () => {
+      const { dir, files } = await withProfiles(["daily"], "daily");
+      const target = join(dir, "elsewhere/shared.json");
+
+      expect(await files.exportProfile("daily", target)).toEqual({ ok: true, value: null });
+      expect(readFileSync(target, "utf8")).toBe(
+        readFileSync(join(dir, "profiles/daily.json"), "utf8"),
+      );
+    });
+
+    it("imports a profile under its name, then numbered when the name is taken", async () => {
+      const { dir, files } = await withProfiles(["daily"], "daily");
+      put(dir, "outside/work-export.json", JSON.stringify({ ...PROFILE, name: "Work & play" }));
+      const source = join(dir, "outside/work-export.json");
+
+      expect(await files.importProfile(source)).toEqual({
+        ok: true,
+        value: { file: "work-play", name: "Work & play" },
+      });
+      expect(await files.importProfile(source)).toEqual({
+        ok: true,
+        value: { file: "work-play-2", name: "Work & play (2)" },
+      });
+      expect(await files.readProfile("work-play")).toMatchObject({
+        value: { ...PROFILE, name: "Work & play" },
+      });
+      // The existing profile is untouched.
+      expect(await files.readProfile("daily")).toMatchObject({ value: { name: "daily" } });
+    });
+
+    it("names an imported profile without a name after its file", async () => {
+      const { dir, files } = await withProfiles(["daily"], "daily");
+      const { name: _, ...unnamed } = PROFILE;
+      put(dir, "outside/Gaming.json", JSON.stringify(unnamed));
+
+      expect(await files.importProfile(join(dir, "outside/Gaming.json"))).toEqual({
+        ok: true,
+        value: { file: "gaming", name: "Gaming" },
+      });
+    });
+
+    it("refuses to import a file that isn't a valid profile", async () => {
+      const { dir, files } = await withProfiles(["daily"], "daily");
+      put(dir, "outside/broken.json", "{ not json");
+      put(dir, "outside/wrong.json", JSON.stringify({ version: 1, layers: "no" }));
+
+      expect(await files.importProfile(join(dir, "outside/broken.json"))).toMatchObject({
+        ok: false,
+        problem: { file: "broken.json", message: expect.stringContaining("not valid JSON") },
+      });
+      const wrong = await files.importProfile(join(dir, "outside/wrong.json"));
+      expect(wrong).toMatchObject({ ok: false, problem: { file: "wrong.json" } });
+      expect(wrong.ok || wrong.problem.issues.length > 0).toBe(true);
+      expect(await files.listProfiles()).toEqual({
+        ok: true,
+        value: [{ file: "daily", name: "daily" }],
+      });
+    });
+
     it("deletes a profile, but not the active one", async () => {
       const { files } = await withProfiles(["daily", "work"], "daily");
 

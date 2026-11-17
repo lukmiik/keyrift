@@ -9,7 +9,7 @@ import { type ReactNode, useState } from "react";
 
 import type { ConfigApi, EngineApi } from "../../shared/api.ts";
 import { layerReferences, type ProfileEdit } from "../config/profile-edits.ts";
-import { slugify } from "../config/slug.ts";
+import { slugify } from "../../shared/slug.ts";
 import type { ProfileEditor } from "../config/useProfileEditor.ts";
 import { useRecorder } from "../engine/useRecorder.ts";
 import { actionKind, KIND_COLORS, keyMeaning } from "../keyboard/actions.ts";

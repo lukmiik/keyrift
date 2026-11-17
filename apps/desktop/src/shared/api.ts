@@ -89,6 +89,16 @@ export type ConfigApi = {
   renameProfile(from: string, to: string, displayName: string): Promise<ConfigOutcome<null>>;
   /** Deletes a profile that isn't the active one. */
   deleteProfile(name: string): Promise<ConfigOutcome<null>>;
+  /**
+   * Asks where to save profile `name` (a save dialog) and writes it there. Resolves to the path,
+   * or `null` if the user cancelled.
+   */
+  exportProfile(name: string): Promise<ConfigOutcome<string | null>>;
+  /**
+   * Asks for a profile file (an open dialog) and adds it as a new profile, renamed if its name is
+   * taken. Resolves to the new profile, or `null` if the user cancelled.
+   */
+  importProfile(): Promise<ConfigOutcome<ProfileEntry | null>>;
   /** Reads and validates `settings.json`. `null` if the file doesn't exist. */
   readSettings(): Promise<ConfigOutcome<Settings | null>>;
   /**

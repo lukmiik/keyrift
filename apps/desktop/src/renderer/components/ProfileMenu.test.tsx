@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
@@ -128,5 +128,38 @@ describe("ProfileMenu", () => {
 
     expect(await screen.findByRole("button", { name: "Profile: Work stuff" })).toBeDefined();
     expect([...config.profiles.keys()]).toEqual(["work"]);
+  });
+
+  it("imports a profile and makes it active", async () => {
+    const { config, user } = await renderApp();
+    config.toImport = { version: 1, name: "Gaming", layers: [{ id: "base", name: "Game base" }] };
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Import…" }));
+
+    expect(await screen.findByRole("button", { name: "Profile: Gaming" })).toBeDefined();
+    expect(config.active).toBe("gaming");
+    expect(await screen.findByRole("tab", { name: "Game base" })).toBeDefined();
+  });
+
+  it("changes nothing when the import is cancelled", async () => {
+    const { config, user } = await renderApp();
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Import…" }));
+
+    await screen.findByRole("button", { name: "Profile: Daily life" });
+    expect([...config.profiles.keys()]).toEqual(["daily", "work"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("exports the active profile", async () => {
+    const { config, user } = await renderApp();
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Export…" }));
+
+    await waitFor(() => expect(config.exports.map((e) => e.name)).toEqual(["daily"]));
+    expect(config.exports[0]?.profile).toMatchObject({ name: "Daily life" });
   });
 });

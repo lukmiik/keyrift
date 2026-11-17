@@ -239,4 +239,32 @@ describe.skipIf(!uinputAvailable())("profile menu", () => {
       expect(existsSync(profileFile("play"))).toBe(false);
     },
   );
+
+  it("exports a profile and imports it back as a new one", { timeout: 60_000 }, async () => {
+    const { app, engine } = await startAppWithEngine();
+    const w = app.window;
+    const shared = join(engine.configDir, "..", "shared.json");
+
+    // Export: the file is the profile as saved in the config folder.
+    await app.stubFileDialogs({ save: shared });
+    await w.getByRole("button", { name: "Profile: test" }).click();
+    await w.getByRole("menuitem", { name: "Export…" }).click();
+    await expect
+      .poll(() => (existsSync(shared) ? JSON.parse(readFileSync(shared, "utf8")) : null))
+      .toEqual(JSON.parse(readFileSync(join(engine.configDir, "profiles/test.json"), "utf8")));
+
+    // Import it renamed, as someone else's profile: it is added and the engine switches to it.
+    writeFileSync(
+      shared,
+      JSON.stringify({ ...JSON.parse(readFileSync(shared, "utf8")), name: "Shared" }),
+    );
+    await app.stubFileDialogs({ open: shared });
+    await w.getByRole("button", { name: "Profile: test" }).click();
+    await w.getByRole("menuitem", { name: "Import…" }).click();
+    expect(await waitForEngine(engine, (s) => s.profile === "shared")).toMatchObject({
+      profile: "shared",
+      configIssues: [],
+    });
+    await w.getByRole("button", { name: "Profile: Shared" }).waitFor({ timeout: 5000 });
+  });
 });

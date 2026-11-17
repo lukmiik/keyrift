@@ -7,7 +7,7 @@
 import { ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 
-import type { ConfigApi, ConfigOutcome } from "../../shared/api.ts";
+import type { ConfigApi, ConfigOutcome, ProfileEntry } from "../../shared/api.ts";
 import { displayName, type Profiles } from "../config/useProfiles.ts";
 import {
   AlertDialog,
@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog.tsx";
-import { slugify } from "../config/slug.ts";
+import { slugify } from "../../shared/slug.ts";
 import { NameDialog } from "./NameDialog.tsx";
 import { Button } from "./ui/button.tsx";
 import {
@@ -81,6 +81,33 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
     setError(await apply(() => config.setActiveProfile(name)));
   }
 
+  /** Asks for a profile file and adds it; it becomes active, like a new profile. */
+  async function importProfile(): Promise<void> {
+    // The imported profile, or null if the dialog was cancelled (set by the first step).
+    const imported: { entry: ProfileEntry | null } = { entry: null };
+    setError(
+      await apply(
+        async () => {
+          const outcome = await config.importProfile();
+          if (!outcome.ok) return outcome;
+          imported.entry = outcome.value;
+          return { ok: true, value: null };
+        },
+        () => (imported.entry === null ? done() : config.setActiveProfile(imported.entry.file)),
+      ),
+    );
+  }
+
+  /** Asks where to save the active profile and writes it there (after saving pending edits). */
+  async function exportProfile(file: string): Promise<void> {
+    setError(
+      await apply(async () => {
+        const outcome = await config.exportProfile(file);
+        return outcome.ok ? done() : outcome;
+      }),
+    );
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -123,6 +150,9 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
           >
             Delete…
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => void importProfile()}>Import…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void exportProfile(active)}>Export…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {error !== null && (
@@ -219,4 +249,9 @@ export function fileName(name: string): string {
 
 function fileHint(name: string): string {
   return name === "" ? "" : `Saved as profiles/${fileName(name)}.json`;
+}
+
+/** A step that changes nothing, for `apply`. */
+function done(): Promise<ConfigOutcome<null>> {
+  return Promise.resolve({ ok: true, value: null });
 }

@@ -93,6 +93,25 @@ export class TestApp {
     ) as Partial<FakeSystemState>;
   }
 
+  /**
+   * Answers the app's file dialogs with these paths instead of showing them: `open` for "Import
+   * profile", `save` for "Export profile"; a path left out answers "cancelled".
+   */
+  stubFileDialogs(paths: { open?: string; save?: string }): Promise<void> {
+    return this.#app.evaluate(({ dialog }, chosen) => {
+      dialog.showOpenDialog = (() =>
+        Promise.resolve({
+          canceled: chosen.open === undefined,
+          filePaths: chosen.open === undefined ? [] : [chosen.open],
+        })) as typeof dialog.showOpenDialog;
+      dialog.showSaveDialog = (() =>
+        Promise.resolve({
+          canceled: chosen.save === undefined,
+          filePath: chosen.save ?? "",
+        })) as typeof dialog.showSaveDialog;
+    }, paths);
+  }
+
   /** Closes the app and deletes its data folder. */
   async close(): Promise<void> {
     await this.#app.close();

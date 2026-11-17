@@ -13,6 +13,7 @@ import type {
 } from "../../shared/api.ts";
 import { setRemapped } from "../../shared/devices.ts";
 import { byName } from "../../shared/profiles.ts";
+import { slugify } from "../../shared/slug.ts";
 
 export class FakeConfig implements ConfigApi {
   /** Profile files by name. */
@@ -26,6 +27,10 @@ export class FakeConfig implements ConfigApi {
   readonly deviceChanges: { device: DeviceMatch; probablyMouse: boolean; remap: boolean }[] = [];
   /** Set to make every save fail with this problem. */
   saveProblem: ConfigProblem | null = null;
+  /** Every export, in order: the profile and what was written. */
+  readonly exports: { name: string; profile: Profile }[] = [];
+  /** What the next import's "file" holds; null: the user cancels the dialog. */
+  toImport: Profile | null = null;
 
   constructor(profiles: Record<string, Profile> = {}) {
     for (const [name, profile] of Object.entries(profiles)) {
@@ -125,6 +130,23 @@ export class FakeConfig implements ConfigApi {
     if (name === this.active) return fail(`profiles/${name}.json`, "is the active profile");
     this.profiles.delete(name);
     return ok(null);
+  }
+
+  exportProfile(name: string): Promise<ConfigOutcome<string | null>> {
+    const profile = this.profiles.get(name);
+    if (profile === undefined) return fail(`profiles/${name}.json`, "doesn't exist");
+    this.exports.push({ name, profile });
+    return ok(`/home/tester/${name}.json`);
+  }
+
+  /** Adds `toImport` under a free file name, like ConfigFiles (without renaming taken names). */
+  importProfile(): Promise<ConfigOutcome<ProfileEntry | null>> {
+    if (this.toImport === null) return ok(null);
+    const name = this.toImport.name ?? "Imported";
+    let file = slugify(name, "profile");
+    while (this.profiles.has(file)) file = `${file}-2`;
+    this.profiles.set(file, { ...this.toImport, name });
+    return ok({ file, name });
   }
 }
 

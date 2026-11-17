@@ -49,6 +49,8 @@ const api: KeyriftApi = {
     renameProfile: (from, to, displayName) =>
       ipcRenderer.invoke("config:rename-profile", from, to, displayName),
     deleteProfile: (name) => ipcRenderer.invoke("config:delete-profile", name),
+    exportProfile: (name) => ipcRenderer.invoke("config:export-profile", name),
+    importProfile: () => ipcRenderer.invoke("config:import-profile"),
     setDeviceRemapped: (device, probablyMouse, remap) =>
       ipcRenderer.invoke("config:set-device-remapped", device, probablyMouse, remap),
     updateSettings: (changes) => ipcRenderer.invoke("config:update-settings", changes),

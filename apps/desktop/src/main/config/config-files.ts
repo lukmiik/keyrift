@@ -23,6 +23,7 @@ import {
 import type { ConfigOutcome, ConfigProblem, ProfileEntry } from "../../shared/api.ts";
 import { setRemapped } from "../../shared/devices.ts";
 import { byName } from "../../shared/profiles.ts";
+import { slugify } from "../../shared/slug.ts";
 
 /** `~/.config/keyrift`, or under `$XDG_CONFIG_HOME` if set; same rule as the engine. */
 export function defaultConfigDir(): string {
@@ -310,6 +311,68 @@ export class ConfigFiles {
       return problem(profileFile(name), "is the active profile; switch to another one first");
     }
     return this.#remove(profileFile(name));
+  }
+
+  /**
+   * Writes profile `name` to `path` (anywhere, e.g. a file the user picked to share it), as the same
+   * formatted JSON the config folder has. The profile is checked first, so a broken one isn't
+   * passed on.
+   */
+  async exportProfile(name: unknown, path: string): Promise<ConfigOutcome<null>> {
+    if (!isProfileName(name)) {
+      return badName(name);
+    }
+    const read = await this.readProfile(name);
+    if (!read.ok) {
+      return read;
+    }
+    if (read.value === null) {
+      return problem(profileFile(name), "doesn't exist");
+    }
+    try {
+      await writeFileAtomic(path, `${JSON.stringify(read.value, null, 2)}\n`);
+    } catch (error) {
+      return problem(basename(path), `cannot save: ${(error as Error).message}`);
+    }
+    return { ok: true, value: null };
+  }
+
+  /**
+   * Adds the profile in the file at `path` (e.g. one exported on another computer) as a new
+   * profile. It is checked like any profile. It never replaces one: a name that is taken gets a
+   * number ("Daily (2)"), and so does its file name. Without a `name` field the file's name is used.
+   */
+  async importProfile(path: string): Promise<ConfigOutcome<ProfileEntry>> {
+    const source = basename(path);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readFile(path, "utf8"));
+    } catch (error) {
+      const reason = error instanceof SyntaxError ? "not valid JSON" : "cannot read";
+      return problem(source, `${reason}: ${(error as Error).message}`);
+    }
+    const checked = validateProfile(parsed);
+    if (!checked.ok) {
+      return invalid(source, checked.issues);
+    }
+    const listed = await this.listProfiles();
+    if (!listed.ok) {
+      return listed;
+    }
+    const wanted = checked.value.name?.trim() || source.replace(/\.json$/i, "");
+    const names = new Set(listed.value.map((entry) => entry.name));
+    const files = new Set(listed.value.map((entry) => entry.file));
+    let name = wanted;
+    for (let n = 2; names.has(name); n++) name = `${wanted} (${n})`;
+    const slug = slugify(name, "profile");
+    let file = slug;
+    for (let n = 2; files.has(file); n++) file = `${slug}-${n}`;
+    const written = await this.#writeJson(
+      profileFile(file),
+      { ...checked.value, name },
+      validateProfile,
+    );
+    return written.ok ? { ok: true, value: { file, name } } : written;
   }
 
   async #exists(file: string): Promise<boolean> {

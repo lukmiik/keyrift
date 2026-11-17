@@ -16,6 +16,8 @@
  * - "config:create-profile" page → main, invoke: (name, copyOf | null) → ConfigOutcome<null>
  * - "config:rename-profile" page → main, invoke: (from, to) → ConfigOutcome<null>
  * - "config:delete-profile" page → main, invoke: (name) → ConfigOutcome<null>
+ * - "config:export-profile" page → main, invoke: (name) → ConfigOutcome<path | null>; asks where
+ * - "config:import-profile" page → main, invoke: () → ConfigOutcome<ProfileEntry | null>; asks which
  * - "config:set-device-remapped" page → main, invoke: (device, probablyMouse, remap)
  *                                  → ConfigOutcome<null>
  * - "config:update-settings" page → main, invoke: (SettingsChanges) → ConfigOutcome<null>; also
@@ -33,7 +35,10 @@
  * - "logs:entries" main → page, send: (LogEntry[])
  * - "logs:error"   main → page, send: (message)
  */
-import { BrowserWindow, ipcMain, type WebContents } from "electron";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+import { BrowserWindow, dialog, ipcMain, type WebContents } from "electron";
 
 import type { CallOutcome } from "../shared/api.ts";
 import { isMethod, type ParamsOf } from "../shared/protocol.ts";
@@ -96,6 +101,36 @@ export function registerConfigIpc(files: ConfigFiles, onSettingsSaved: () => voi
       files.renameProfile(from, to, displayName),
   );
   ipcMain.handle("config:delete-profile", (_event, name: unknown) => files.deleteProfile(name));
+  // The dialogs belong to the window that asked, so they open over it.
+  ipcMain.handle("config:export-profile", async (event, name: unknown) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const options = {
+      title: "Export profile",
+      defaultPath: join(homedir(), `${typeof name === "string" ? name : "profile"}.json`),
+      filters: [{ name: "Keyrift profile", extensions: ["json"] }],
+    };
+    const chosen = await (window === null
+      ? dialog.showSaveDialog(options)
+      : dialog.showSaveDialog(window, options));
+    if (chosen.canceled || chosen.filePath === undefined) return { ok: true, value: null };
+    const written = await files.exportProfile(name, chosen.filePath);
+    return written.ok ? { ok: true, value: chosen.filePath } : written;
+  });
+  ipcMain.handle("config:import-profile", async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const options = {
+      title: "Import profile",
+      defaultPath: homedir(),
+      filters: [{ name: "Keyrift profile", extensions: ["json"] }],
+      properties: ["openFile" as const],
+    };
+    const chosen = await (window === null
+      ? dialog.showOpenDialog(options)
+      : dialog.showOpenDialog(window, options));
+    const path = chosen.filePaths[0];
+    if (chosen.canceled || path === undefined) return { ok: true, value: null };
+    return files.importProfile(path);
+  });
   ipcMain.handle(
     "config:set-device-remapped",
     (_event, device: unknown, probablyMouse: unknown, remap: unknown) =>
