@@ -66,3 +66,32 @@ export async function restartEngineUsing(
     );
   });
 }
+
+/** The version a `keyrift` binary reports (`keyrift --version` prints "keyrift 0.2.0"). */
+export function binaryVersion(binary: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(binary, ["--version"], { timeout: 10_000 }, (error, stdout) => {
+      const version = stdout.trim().split(/\s+/).at(-1);
+      resolve(error === null && version !== undefined && version !== "" ? version : null);
+    });
+  });
+}
+
+/**
+ * After an update the package manager has replaced the engine's file, but the running engine is
+ * still the old one until its service restarts (the package's script runs as root and can't
+ * restart a user's service). So when the engine that answers (`running`) isn't the version of
+ * `binary`, the service is restarted, if it runs `binary` (restartEngineUsing). Resolves to
+ * whether it asked systemd to restart.
+ */
+export async function restartIfOutdated(
+  binary: string,
+  running: string,
+  systemctl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  const installed = await binaryVersion(binary);
+  if (installed === null || installed === running) return false;
+  await restartEngineUsing(binary, systemctl, env);
+  return true;
+}

@@ -26,7 +26,12 @@ import { runServiceFix, runSystemFix } from "./setup/fixes.ts";
 import { fakeProbe, realProbe } from "./setup/probe.ts";
 import { SetupControl } from "./setup/setup.ts";
 import { AutostartControl } from "./system/autostart.ts";
-import { appImageEnginePath, installEngine, restartEngineUsing } from "./system/engine-binary.ts";
+import {
+  appImageEnginePath,
+  installEngine,
+  restartEngineUsing,
+  restartIfOutdated,
+} from "./system/engine-binary.ts";
 import { ThemeControl } from "./system/theme.ts";
 import { fakeUpdater, UpdateControl } from "./system/updates.ts";
 import { KeyriftTray } from "./tray/tray.ts";
@@ -238,6 +243,20 @@ void app.whenReady().then(async () => {
   // A packaged app looks for an update once, shortly after starting (not in GUI tests, whose app
   // isn't packaged); Settings then offers it, and its sidebar item shows a dot.
   if (app.isPackaged) setTimeout(() => void updates.check(), 10_000);
+  // A .deb or pacman update replaced the engine's file but not the running engine: restart it
+  // once the app sees an older engine answer. (The AppImage restarts it when copying, above.)
+  if (app.isPackaged && process.env.APPIMAGE === undefined) {
+    let checked = false;
+    connection.onStateChange((state) => {
+      if (!state.connected || checked) return;
+      checked = true;
+      void restartIfOutdated(
+        join(process.resourcesPath, "keyrift"),
+        state.hello.engineVersion,
+        process.env.KEYRIFT_SYSTEMCTL ?? "systemctl",
+      );
+    });
+  }
   connection.start();
   // The theme before the window opens, so it doesn't open in the wrong one.
   await theme.start(await themeSetting());

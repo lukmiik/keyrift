@@ -4,7 +4,13 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
-import { appImageEnginePath, installEngine, restartEngineUsing } from "./engine-binary.ts";
+import {
+  appImageEnginePath,
+  binaryVersion,
+  installEngine,
+  restartEngineUsing,
+  restartIfOutdated,
+} from "./engine-binary.ts";
 
 const temp = () => mkdtempSync(join(tmpdir(), "keyrift-engine-binary-"));
 
@@ -49,5 +55,31 @@ describe("engine binary", () => {
     writeFileSync(unit, "[Service]\nExecStart=/a/keyrift daemon\n");
     await restartEngineUsing("/a/keyrift", systemctl, env);
     expect(calls()).toBe("--user try-restart keyrift.service\n");
+  });
+
+  it("restarts the service when the engine running is older than the one installed", async () => {
+    const dir = temp();
+    const log = join(dir, "calls");
+    const systemctl = join(dir, "systemctl");
+    writeFileSync(systemctl, `#!/bin/sh\necho "$@" >> ${log}\n`);
+    chmodSync(systemctl, 0o755);
+    // The installed engine: a script that answers --version like keyrift does.
+    const engine = join(dir, "keyrift");
+    writeFileSync(engine, `#!/bin/sh\necho "keyrift 0.2.0"\n`);
+    chmodSync(engine, 0o755);
+    const env = { XDG_CONFIG_HOME: join(dir, "config") };
+    mkdirSync(join(dir, "config/systemd/user"), { recursive: true });
+    writeFileSync(
+      join(dir, "config/systemd/user/keyrift.service"),
+      `[Service]\nExecStart=${engine} daemon\n`,
+    );
+    const calls = () => readFileSync(log, { encoding: "utf8", flag: "a+" });
+
+    expect(await binaryVersion(engine)).toBe("0.2.0");
+    expect(await restartIfOutdated(engine, "0.2.0", systemctl, env)).toBe(false);
+    expect(calls()).toBe("");
+    expect(await restartIfOutdated(engine, "0.1.0", systemctl, env)).toBe(true);
+    expect(calls()).toBe("--user try-restart keyrift.service\n");
+    expect(await binaryVersion(join(dir, "missing"))).toBeNull();
   });
 });
