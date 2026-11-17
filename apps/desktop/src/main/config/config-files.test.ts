@@ -165,6 +165,51 @@ describe("ConfigFiles", () => {
     });
   });
 
+  describe("updateSettings", () => {
+    it("merges each group into settings.json and keeps the rest", async () => {
+      const { dir, files } = tempConfig();
+      put(
+        dir,
+        "settings.json",
+        '{"version": 1, "activeProfile": "daily", "ui": {"physicalLayout": "ansi-60"}}',
+      );
+
+      expect(
+        await files.updateSettings({ ui: { theme: "light" }, tapHold: { timeoutMs: 250 } }),
+      ).toEqual({ ok: true, value: null });
+      await files.updateSettings({ logLevel: "warn" });
+      expect(await files.readSettings()).toEqual({
+        ok: true,
+        value: {
+          version: 1,
+          activeProfile: "daily",
+          ui: { physicalLayout: "ansi-60", theme: "light" },
+          tapHold: { timeoutMs: 250 },
+          logLevel: "warn",
+        },
+      });
+    });
+
+    it("creates settings.json if there is none", async () => {
+      const { files } = tempConfig();
+      await files.updateSettings({ emergencyRelease: { enabled: false } });
+      expect(await files.readSettings()).toEqual({
+        ok: true,
+        value: { version: 1, emergencyRelease: { enabled: false } },
+      });
+    });
+
+    it("refuses other groups and values the schema rejects", async () => {
+      const { dir, files } = tempConfig();
+      expect(await files.updateSettings({ activeProfile: "other" })).toMatchObject({ ok: false });
+      expect(await files.updateSettings({ tapHold: { timeoutMs: -1 } })).toMatchObject({
+        ok: false,
+      });
+      expect(await files.updateSettings("theme=light")).toMatchObject({ ok: false });
+      expect(readdirSync(dir)).toEqual([]);
+    });
+  });
+
   describe("setDeviceRemapped", () => {
     it("excludes a keyboard and keeps the rest of settings.json", async () => {
       const { dir, files } = tempConfig();

@@ -91,6 +91,58 @@ export function triggerTaken(
   return index === -1 ? null : index;
 }
 
+/** The two sides of each either-side modifier. */
+const SIDES: Record<string, readonly TriggerModifier[]> = {
+  Ctrl: ["LeftCtrl", "RightCtrl"],
+  Shift: ["LeftShift", "RightShift"],
+  Alt: ["LeftAlt", "RightAlt"],
+  Super: ["LeftSuper", "RightSuper"],
+};
+
+/**
+ * Whether `trigger` matches while exactly the side modifiers `held` are down, like the engine
+ * (`Trigger::matches`): each side-specific modifier is held, each either-side one has at least one
+ * side held, and nothing else is held.
+ */
+function matchesHeld(trigger: TriggerConfig, held: ReadonlySet<TriggerModifier>): boolean {
+  const mods = trigger.mods ?? [];
+  const allowed = new Set(mods.flatMap((mod) => SIDES[mod] ?? [mod]));
+  return (
+    [...held].every((mod) => allowed.has(mod)) &&
+    mods.every((mod) => (SIDES[mod] ?? [mod]).some((side) => held.has(side)))
+  );
+}
+
+/**
+ * For each rule, the earlier rules that match every key press it matches, or null. The first
+ * matching rule wins (spec §5.5), so such a rule is never used: e.g. "Ctrl+C" before "LCtrl+C".
+ * Duplicates are reported by `duplicateOf` and get null here. Checks every combination of held
+ * modifiers (2^8), so a rule hidden by several earlier ones together is found too.
+ */
+export function neverUsed(shortcuts: readonly ShortcutConfig[]): (number[] | null)[] {
+  const duplicates = duplicateOf(shortcuts);
+  const helds = Array.from(
+    { length: 1 << SIDE_MODIFIERS.length },
+    (_, mask) => new Set(SIDE_MODIFIERS.filter((_, bit) => (mask & (1 << bit)) !== 0)),
+  );
+  return shortcuts.map((rule, index) => {
+    if (duplicates[index] !== null) return null;
+    const earlier = shortcuts
+      .slice(0, index)
+      .map((other, i) => ({ other, i }))
+      .filter(({ other }) => other.trigger.key === rule.trigger.key);
+    if (earlier.length === 0) return null;
+    const takenBy = new Set<number>();
+    for (const held of helds) {
+      if (!matchesHeld(rule.trigger, held)) continue;
+      const first = earlier.find(({ other }) => matchesHeld(other.trigger, held));
+      if (first === undefined) return null;
+      takenBy.add(first.i);
+    }
+    return takenBy.size > 0 ? [...takenBy].sort((a, b) => a - b) : null;
+  });
+}
+
 /** The trigger modifier for a pressed modifier key. AltGr stays its own key; the rest either side. */
 const MODIFIER_KEYS: Partial<Record<KeyName, TriggerModifier>> = {
   KEY_LEFTCTRL: "Ctrl",

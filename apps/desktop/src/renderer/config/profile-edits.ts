@@ -21,7 +21,9 @@ export type ProfileEdit =
   | { type: "addShortcut"; shortcut: ShortcutConfig }
   /** Replaces the rule at `index`. */
   | { type: "setShortcut"; index: number; shortcut: ShortcutConfig }
-  | { type: "removeShortcut"; index: number };
+  | { type: "removeShortcut"; index: number }
+  /** Moves the rule at `index` to position `to`; the first matching rule wins (spec §5.5). */
+  | { type: "moveShortcut"; index: number; to: number };
 
 /** A profile's layers: at least one, the first is the base layer. */
 type Layers = NonNullable<Profile["layers"]>;
@@ -93,6 +95,22 @@ export function applyEdit(profile: Profile, edit: ProfileEdit): Profile {
       if (edit.index < 0 || edit.index >= shortcuts.length) return profile;
       // An empty list stays in the file (`"shortcuts": []`), like the baseline profile has it.
       return { ...profile, shortcuts: shortcuts.filter((_, i) => i !== edit.index) };
+    }
+
+    case "moveShortcut": {
+      const shortcuts = profile.shortcuts ?? [];
+      const rule = shortcuts[edit.index];
+      if (
+        rule === undefined ||
+        edit.to === edit.index ||
+        edit.to < 0 ||
+        edit.to >= shortcuts.length
+      ) {
+        return profile;
+      }
+      const moved = shortcuts.filter((_, i) => i !== edit.index);
+      moved.splice(edit.to, 0, rule);
+      return { ...profile, shortcuts: moved };
     }
 
     case "renameLayer":

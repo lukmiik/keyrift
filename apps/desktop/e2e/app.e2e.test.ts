@@ -30,16 +30,18 @@ async function startAppWithEngine(profile?: object): Promise<{ app: TestApp; eng
   return { app, engine };
 }
 
-describe("status header", () => {
-  it("shows the engine's state and profile", { timeout: 300_000 }, async () => {
+describe("engine control and profile menu", () => {
+  it("show the engine's state and profile", { timeout: 300_000 }, async () => {
     const { app } = await startAppWithEngine();
+    const panel = app.window.getByRole("region", { name: "Engine" });
     const header = app.window.locator("header");
+    const sidebar = app.window.locator("aside");
 
     // Playwright waits (up to 5 s) until the element has this text: the app needs a moment to
     // connect and ask for the status.
-    await header.getByRole("status").getByText("Running").waitFor({ timeout: 5000 });
-    await header.getByText("Profile: test").waitFor({ timeout: 5000 });
-    expect(await header.textContent()).toContain("0 input devices grabbed");
+    await panel.getByRole("status").getByText("Active").waitFor({ timeout: 5000 });
+    expect(await panel.textContent()).toContain("0 keyboards");
+    await sidebar.getByRole("button", { name: "Profile: test" }).waitFor({ timeout: 5000 });
     // The Tailwind CSS loaded: the page's CSP lets the built stylesheet through.
     // (Through the element's own window: this file is type-checked without browser types.)
     const border = await header.evaluate(
@@ -51,23 +53,23 @@ describe("status header", () => {
   it("pauses and resumes the real engine", async () => {
     const { app, engine } = await startAppWithEngine();
     const pill = app.window.getByRole("status");
-    await pill.getByText("Running").waitFor({ timeout: 5000 });
+    await pill.getByText("Active").waitFor({ timeout: 5000 });
 
-    await app.window.getByRole("button", { name: "Pause", exact: true }).click();
+    await app.window.getByRole("switch", { name: "Remapping" }).click();
     await pill.getByText("Paused").waitFor({ timeout: 5000 });
     // Ask the engine itself, not the page: is it really paused?
     const client = await engine.connect();
     expect(await client.call("status.get", {})).toMatchObject({ state: "paused" });
     await client.close();
 
-    await app.window.getByRole("button", { name: "Resume", exact: true }).click();
-    await pill.getByText("Running").waitFor({ timeout: 5000 });
+    await app.window.getByRole("switch", { name: "Remapping" }).click();
+    await pill.getByText("Active").waitFor({ timeout: 5000 });
   });
 
   it("follows the engine: paused from outside, stopped", async () => {
     const { app, engine } = await startAppWithEngine();
     const pill = app.window.getByRole("status");
-    await pill.getByText("Running").waitFor({ timeout: 5000 });
+    await pill.getByText("Active").waitFor({ timeout: 5000 });
 
     // Change the engine from outside the app; the status event must reach the page.
     const client = await engine.connect();
@@ -84,13 +86,13 @@ describe("versions line", () => {
   it("shows the Electron version from the preload", async () => {
     const { app } = await startAppWithEngine();
 
-    // The versions live on the Settings screen.
+    // The versions live under About on the Settings screen.
     await app.window.getByRole("button", { name: "Settings" }).click();
-    const versions = app.window.locator("#versions");
+    const about = app.window.getByRole("region", { name: "About" });
 
-    await versions.getByText("Electron").waitFor({ timeout: 5000 });
+    await about.getByText("Electron", { exact: true }).waitFor({ timeout: 5000 });
     // Any version number, so the test survives Electron upgrades.
-    expect(await versions.textContent()).toMatch(/Electron \d+\.\d+\.\d+/);
+    expect(await about.textContent()).toMatch(/Electron\s*\d+\.\d+\.\d+/);
   });
 });
 

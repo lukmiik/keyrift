@@ -6,7 +6,7 @@
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
-import type { ConnectionState, KeyriftApi } from "../shared/api.ts";
+import type { ConnectionState, KeyriftApi, LogEntry } from "../shared/api.ts";
 import type { EngineEvent } from "../shared/protocol.ts";
 
 /**
@@ -51,6 +51,25 @@ const api: KeyriftApi = {
     deleteProfile: (name) => ipcRenderer.invoke("config:delete-profile", name),
     setDeviceRemapped: (device, probablyMouse, remap) =>
       ipcRenderer.invoke("config:set-device-remapped", device, probablyMouse, remap),
+    updateSettings: (changes) => ipcRenderer.invoke("config:update-settings", changes),
+  },
+  system: {
+    dark: () => ipcRenderer.invoke("system:dark"),
+    onDarkChange: (listener: (dark: boolean) => void) => listen("system:dark-changed", listener),
+    autostart: () => ipcRenderer.invoke("system:autostart"),
+    setAutostart: (enabled) => ipcRenderer.invoke("system:set-autostart", enabled),
+  },
+  setup: {
+    checks: () => ipcRenderer.invoke("setup:checks"),
+    fix: (kind) => ipcRenderer.invoke("setup:fix", kind),
+    firstRun: () => ipcRenderer.invoke("setup:first-run"),
+    markDone: () => ipcRenderer.invoke("setup:mark-done"),
+  },
+  logs: {
+    start: () => ipcRenderer.invoke("logs:start"),
+    stop: () => ipcRenderer.invoke("logs:stop"),
+    onEntries: (listener: (entries: LogEntry[]) => void) => listen("logs:entries", listener),
+    onError: (listener: (message: string) => void) => listen("logs:error", listener),
   },
 };
 

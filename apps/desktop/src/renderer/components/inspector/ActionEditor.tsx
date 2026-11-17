@@ -35,7 +35,7 @@ export function ActionEditor(props: ActionEditorProps) {
   const { action, onChange, slot, physicalKey, layers } = props;
   const hasLayers = targetLayers(layers).length > 0;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <SelectField<ActionType>
         label="Type"
         value={action.type}
@@ -166,8 +166,9 @@ function ActionFields(props: ActionEditorProps) {
     case "tapHold":
       return (
         <>
-          <fieldset aria-label="Tap" className="flex flex-col gap-3 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">Tap</legend>
+          <fieldset aria-label="Tap" className="flex flex-col gap-4 rounded-md border p-3">
+            {/* -ml-1 undoes the px-1 (room in the border line): the title lines up with the fields. */}
+            <legend className="-ml-1 px-1 text-sm font-medium">Tap</legend>
             <ActionEditor
               {...props}
               slot="tap"
@@ -176,8 +177,8 @@ function ActionFields(props: ActionEditorProps) {
               onChange={(tap) => onChange({ ...action, tap })}
             />
           </fieldset>
-          <fieldset aria-label="Hold" className="flex flex-col gap-3 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">Hold</legend>
+          <fieldset aria-label="Hold" className="flex flex-col gap-4 rounded-md border p-3">
+            <legend className="-ml-1 px-1 text-sm font-medium">Hold</legend>
             <ActionEditor
               {...props}
               slot="hold"

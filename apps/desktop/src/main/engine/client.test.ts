@@ -47,6 +47,7 @@ describe("EngineClient", () => {
     const status = await client.call("status.get", {});
     expect(status.profile).toBe("test");
     expect(status.devices.grabbed).toBe(0);
+    expect(status.devices.keyboards).toBe(0);
   });
 
   it("matches replies to requests sent at the same time", async () => {

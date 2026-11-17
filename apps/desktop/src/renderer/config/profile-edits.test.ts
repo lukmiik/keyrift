@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { Profile } from "@keyrift/config-types";
+import type { Profile, ShortcutConfig } from "@keyrift/config-types";
 
 import { applyEdit, layerReferences } from "./profile-edits.ts";
 import { deepFreeze, testProfile } from "./test-profile.ts";
@@ -186,6 +186,25 @@ describe("shortcuts", () => {
     expect(removed.shortcuts).toEqual([f1]);
     // The last one leaves an empty list, like the baseline profile's `"shortcuts": []`.
     expect(applyEdit(removed, { type: "removeShortcut", index: 0 }).shortcuts).toEqual([]);
+  });
+
+  it("moves a rule up or down", () => {
+    const f2: ShortcutConfig = { trigger: { key: "KEY_F2" }, action: { type: "none" } };
+    const f3: ShortcutConfig = { trigger: { key: "KEY_F3" }, action: { type: "none" } };
+    const profile = { ...testProfile(), shortcuts: [f1, f2, f3] };
+    expect(applyEdit(profile, { type: "moveShortcut", index: 2, to: 1 }).shortcuts).toEqual([
+      f1,
+      f3,
+      f2,
+    ]);
+    expect(applyEdit(profile, { type: "moveShortcut", index: 0, to: 1 }).shortcuts).toEqual([
+      f2,
+      f1,
+      f3,
+    ]);
+    // Past either end: nothing changes.
+    expect(applyEdit(profile, { type: "moveShortcut", index: 0, to: -1 })).toBe(profile);
+    expect(applyEdit(profile, { type: "moveShortcut", index: 2, to: 3 })).toBe(profile);
   });
 
   it("returns the same profile for a rule that doesn't exist", () => {

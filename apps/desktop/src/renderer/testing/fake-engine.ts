@@ -3,7 +3,14 @@
  * Tests set the connection and status, and see which methods the page called.
  */
 import type { CallOutcome, ConnectionState, EngineApi, PageMethod } from "../../shared/api.ts";
-import type { DeviceGroup, EngineEvent, ParamsOf, Status, Topic } from "../../shared/protocol.ts";
+import type {
+  DeviceGroup,
+  EngineEvent,
+  ParamsOf,
+  Status,
+  TesterEventData,
+  Topic,
+} from "../../shared/protocol.ts";
 
 /** A plausible status; pass fields to change. */
 export function fakeStatus(fields: Partial<Status> = {}): Status {
@@ -16,7 +23,7 @@ export function fakeStatus(fields: Partial<Status> = {}): Status {
     configIssues: [],
     configPending: false,
     logLevel: "info",
-    devices: { grabbed: 3, blocked: [] },
+    devices: { grabbed: 3, keyboards: 1, blocked: [] },
     outputDevice: "/dev/input/event30",
     recording: false,
     latency: { samples: 0 },
@@ -74,6 +81,11 @@ export class FakeEngine implements EngineApi {
       this.subscribedTopics = [...new Set([...this.subscribedTopics, ...topics])];
       return answer({ ok: true, result: { topics: this.subscribedTopics } });
     }
+    if (method === "unsubscribe") {
+      const topics = (params as ParamsOf<"unsubscribe">).topics;
+      this.subscribedTopics = this.subscribedTopics.filter((topic) => !topics.includes(topic));
+      return answer({ ok: true, result: { topics: this.subscribedTopics } });
+    }
     if (method === "record.start") {
       this.recorded = [];
       return answer({ ok: true, result: {} });
@@ -82,6 +94,12 @@ export class FakeEngine implements EngineApi {
       const keys = this.recorded ?? [];
       this.recorded = null;
       return answer({ ok: true, result: { keys } });
+    }
+    if (method === "log.setLevel") {
+      // Like the engine: a status event with the new level, then the answer.
+      const { level } = params as ParamsOf<"log.setLevel">;
+      this.setStatus({ logLevel: level });
+      return answer({ ok: true, result: { level } });
     }
     if (method === "devices.list") {
       return answer({ ok: true, result: { devices: this.#devices } });
@@ -115,9 +133,9 @@ export class FakeEngine implements EngineApi {
     this.#emit({ event: "layer", data: { layers } });
   }
 
-  /** Changes the number of grabbed devices and sends a devices event, like plugging one in. */
-  setGrabbed(grabbed: number): void {
-    this.#status = { ...this.#status, devices: { ...this.#status.devices, grabbed } };
+  /** Changes the number of grabbed keyboards and sends a devices event, like plugging one in. */
+  setKeyboards(keyboards: number): void {
+    this.#status = { ...this.#status, devices: { ...this.#status.devices, keyboards } };
     this.#emit({ event: "devices", data: { devices: this.#devices } });
   }
 
@@ -132,6 +150,22 @@ export class FakeEngine implements EngineApi {
     if (this.recorded === null) return;
     this.recorded.push(key);
     this.#emit({ event: "record", data: { key, device: "Test keyboard" } });
+  }
+
+  /** Sends a `tester` event, like the engine after a physical key event (only to subscribers). */
+  sendTester(data: Partial<TesterEventData> & { key: string; pressed: boolean }): void {
+    if (!this.subscribedTopics.includes("tester")) return;
+    this.#emit({
+      event: "tester",
+      data: {
+        timeUs: 0,
+        device: "Test keyboard",
+        action: data.pressed ? data.key : null,
+        outputs: [`${data.pressed ? "+" : "-"}${data.key}`],
+        layers: ["base"],
+        ...data,
+      },
+    });
   }
 
   #emit(event: EngineEvent): void {

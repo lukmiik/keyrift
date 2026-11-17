@@ -5,7 +5,7 @@
  */
 import type { KeyName, LayerConfig } from "@keyrift/config-types";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { ConfigApi, EngineApi } from "../../shared/api.ts";
 import { layerReferences, type ProfileEdit } from "../config/profile-edits.ts";
@@ -14,9 +14,11 @@ import type { ProfileEditor } from "../config/useProfileEditor.ts";
 import { useRecorder } from "../engine/useRecorder.ts";
 import { actionKind, KIND_COLORS, keyMeaning } from "../keyboard/actions.ts";
 import { keyName } from "../keyboard/key-labels.ts";
-import { DEFAULT_LAYOUT, type LayoutId, layoutId, layoutKeys } from "../keyboard/layouts.ts";
+import { layoutKeys } from "../keyboard/layouts.ts";
+import { usePhysicalLayout } from "../config/usePhysicalLayout.ts";
 import { Inspector } from "./inspector/Inspector.tsx";
-import { ProfileToolbar, ProfileUnavailable } from "./ProfileToolbar.tsx";
+import { ProfileUnavailable } from "./ProfileToolbar.tsx";
+import { ScreenTitle } from "./ScreenTitle.tsx";
 import { Keyboard, meaningLabel } from "./Keyboard.tsx";
 import { NameDialog } from "./NameDialog.tsx";
 import {
@@ -77,7 +79,7 @@ export function KeymapScreen({ profile, config, engine }: KeymapScreenProps) {
 
   return (
     <section className="flex flex-col gap-4">
-      <ProfileToolbar title="Keymap" profile={profile} />
+      <ScreenTitle title="Keymap" />
 
       <div className="flex flex-wrap items-center gap-2">
         <Tabs value={layer?.id ?? "base"} onValueChange={(id) => setLayerId(String(id))}>
@@ -109,8 +111,9 @@ export function KeymapScreen({ profile, config, engine }: KeymapScreenProps) {
       </div>
 
       {/* Padding inside the scroll box: it clips everything outside it, so without room the
-          selection and focus rings of keys at the top and left edges were cut off. */}
-      <div className="overflow-x-auto p-1 pb-2">
+          selection and focus rings of keys at the top and left edges were cut off. -mx-1 pulls
+          the box out by that padding, so the keys line up with the layer tabs above. */}
+      <div className="-mx-1 overflow-x-auto p-1 pb-2">
         <Keyboard
           keys={keys}
           layers={layers}
@@ -132,7 +135,7 @@ export function KeymapScreen({ profile, config, engine }: KeymapScreenProps) {
                   <button
                     type="button"
                     aria-pressed={key === selected}
-                    onClick={() => setSelected(key)}
+                    onClick={() => setSelected(key === selected ? null : key)}
                     className={`rounded-md border px-2 py-1 text-xs ${kind !== null ? KIND_COLORS[kind] : ""} ${key === selected ? "ring-2 ring-primary" : ""}`}
                   >
                     {keyName(key)}: {meaningLabel(meaning, key, layers)}
@@ -152,6 +155,7 @@ export function KeymapScreen({ profile, config, engine }: KeymapScreenProps) {
           recorder={recorder}
           onSet={(action) => edit({ type: "setKey", layerId: layer.id, key: selected, action })}
           onClear={() => edit({ type: "clearKey", layerId: layer.id, key: selected })}
+          onClose={() => setSelected(null)}
         />
       )}
 
@@ -268,21 +272,6 @@ function IconButton({
       {children}
     </Button>
   );
-}
-
-/** The layout from `settings.ui.physicalLayout` (chosen in Settings, M5); ISO TKL until read. */
-function usePhysicalLayout(config: ConfigApi): LayoutId {
-  const [layout, setLayout] = useState<LayoutId>(DEFAULT_LAYOUT);
-  useEffect(() => {
-    let active = true;
-    void config.readSettings().then((outcome) => {
-      if (active && outcome.ok) setLayout(layoutId(outcome.value?.ui?.physicalLayout));
-    });
-    return () => {
-      active = false;
-    };
-  }, [config]);
-  return layout;
 }
 
 /**

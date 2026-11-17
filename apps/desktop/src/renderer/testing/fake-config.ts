@@ -4,7 +4,7 @@
  */
 import type { DeviceMatch, Profile, Settings } from "@keyrift/config-types";
 
-import type { ConfigApi, ConfigOutcome, ConfigProblem } from "../../shared/api.ts";
+import type { ConfigApi, ConfigOutcome, ConfigProblem, SettingsChanges } from "../../shared/api.ts";
 import { setRemapped } from "../../shared/devices.ts";
 
 export class FakeConfig implements ConfigApi {
@@ -58,6 +58,21 @@ export class FakeConfig implements ConfigApi {
     this.deviceChanges.push({ device, probablyMouse, remap });
     this.settings = setRemapped(this.settings ?? { version: 1 }, device, probablyMouse, remap);
     return Promise.resolve({ ok: true, value: null });
+  }
+
+  /** Merges each group into `settings`, like ConfigFiles.updateSettings. */
+  updateSettings(changes: SettingsChanges): Promise<ConfigOutcome<null>> {
+    if (this.saveProblem !== null) {
+      return Promise.resolve({ ok: false, problem: this.saveProblem });
+    }
+    const next: Record<string, unknown> = { ...(this.settings ?? { version: 1 }) };
+    for (const [group, value] of Object.entries(changes)) {
+      const current = next[group];
+      next[group] =
+        typeof value === "object" && typeof current === "object" ? { ...current, ...value } : value;
+    }
+    this.settings = next as Settings;
+    return ok(null);
   }
 
   listProfiles(): Promise<ConfigOutcome<string[]>> {

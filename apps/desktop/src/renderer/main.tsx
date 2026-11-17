@@ -18,6 +18,9 @@ createRoot(root).render(
     <App
       engine={window.keyrift.engine}
       config={window.keyrift.config}
+      logs={window.keyrift.logs}
+      system={window.keyrift.system}
+      setup={window.keyrift.setup}
       versions={window.keyrift.versions}
     />
   </StrictMode>,

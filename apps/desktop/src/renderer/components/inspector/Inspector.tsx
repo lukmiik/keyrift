@@ -4,7 +4,7 @@
  * is chosen here. "Clear" makes it transparent again.
  */
 import type { ActionConfig, KeyName, LayerConfig } from "@keyrift/config-types";
-import { Eraser } from "lucide-react";
+import { Eraser, X } from "lucide-react";
 
 import {
   type ActionType,
@@ -26,6 +26,8 @@ type InspectorProps = {
   recorder: Recorder;
   onSet: (action: ActionConfig) => void;
   onClear: () => void;
+  /** Unselects the key, which closes the inspector. */
+  onClose: () => void;
 };
 
 export function Inspector({
@@ -35,6 +37,7 @@ export function Inspector({
   recorder,
   onSet,
   onClear,
+  onClose,
 }: InspectorProps) {
   const layer = layers[layerIndex];
   const meaning = keyMeaning(layers, layerIndex, physicalKey);
@@ -52,6 +55,15 @@ export function Inspector({
         </h2>
         <Button variant="outline" size="sm" disabled={meaning.source !== "own"} onClick={onClear}>
           <Eraser /> Clear
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close inspector"
+          title="Close (Esc on the keyboard)"
+          onClick={onClose}
+        >
+          <X />
         </Button>
       </div>
       {recorder.error !== null && (

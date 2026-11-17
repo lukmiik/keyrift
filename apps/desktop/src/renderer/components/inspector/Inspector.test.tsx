@@ -8,6 +8,9 @@ import { App } from "../../App.tsx";
 import { deepFreeze } from "../../config/test-profile.ts";
 import { FakeConfig } from "../../testing/fake-config.ts";
 import { FakeEngine } from "../../testing/fake-engine.ts";
+import { FakeLogs } from "../../testing/fake-logs.ts";
+import { FakeSystem } from "../../testing/fake-system.ts";
+import { FakeSetup } from "../../testing/fake-setup.ts";
 
 afterEach(cleanup);
 
@@ -29,7 +32,16 @@ const PROFILE: Profile = deepFreeze({
 async function inspect(keyName: string) {
   const engine = new FakeEngine();
   const config = new FakeConfig({ daily: PROFILE });
-  render(<App engine={engine} config={config} versions={VERSIONS} />);
+  render(
+    <App
+      logs={new FakeLogs()}
+      system={new FakeSystem()}
+      setup={new FakeSetup()}
+      engine={engine}
+      config={config}
+      versions={VERSIONS}
+    />,
+  );
   await screen.findByRole("tablist", { name: "Layers" });
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: new RegExp(`^${keyName}: `) }));
@@ -55,6 +67,25 @@ async function choose(
 }
 
 describe("Inspector", () => {
+  it("closes with its button, by clicking the key again, or with Escape", async () => {
+    const { user, inspector } = await inspect("Q");
+    const region = () => screen.queryByRole("region", { name: "Inspector" });
+
+    await user.click(within(inspector).getByRole("button", { name: "Close inspector" }));
+    expect(region()).toBeNull();
+
+    const q = screen.getByRole("button", { name: /^Q: / });
+    await user.click(q);
+    expect(region()).not.toBeNull();
+    await user.click(q);
+    expect(region()).toBeNull();
+    expect(q.getAttribute("aria-pressed")).toBe("false");
+
+    await user.click(q);
+    await user.keyboard("{Escape}");
+    expect(region()).toBeNull();
+  });
+
   it("shows a transparent key and sets an action on it", async () => {
     const { user, inspector } = await inspect("Q");
     expect(inspector.textContent).toContain("Not set on this layer, so it does its normal thing");

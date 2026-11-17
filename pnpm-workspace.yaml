@@ -3,6 +3,8 @@ packages:
   - packages/*
 allowBuilds:
   electron: true
+  # Pulled in by electron-builder for Windows installers; Keyrift only builds Linux packages.
+  electron-winstaller: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.5.0
   vite-plus: 1.5.0

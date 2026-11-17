@@ -26,14 +26,14 @@ export function actionKind(action: ActionConfig): ActionKind {
   }
 }
 
-/** Tailwind classes for a key's background and text, per kind. */
+/** Tailwind classes for a key's background and text, per kind: light pastels, dark muted tones. */
 export const KIND_COLORS: Record<ActionKind, string> = {
-  key: "bg-sky-900/60 text-sky-100",
-  combo: "bg-violet-900/60 text-violet-100",
-  layer: "bg-amber-900/60 text-amber-100",
-  tapHold: "bg-emerald-900/60 text-emerald-100",
-  macro: "bg-rose-900/60 text-rose-100",
-  none: "bg-red-950/60 text-red-200",
+  key: "bg-sky-100 text-sky-900 dark:bg-sky-900/60 dark:text-sky-100",
+  combo: "bg-violet-100 text-violet-900 dark:bg-violet-900/60 dark:text-violet-100",
+  layer: "bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100",
+  tapHold: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100",
+  macro: "bg-rose-100 text-rose-900 dark:bg-rose-900/60 dark:text-rose-100",
+  none: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200",
 };
 
 const MOD_LABELS: Record<Modifier, string> = {
@@ -88,18 +88,24 @@ export function actionLabel(action: ActionConfig, layers: LayerConfig[]): string
   }
 }
 
-/** What a key on layer `index` does: its own action, or (if transparent) the one below it. */
+/** What a key on layer `index` does: its own action, or (if transparent) the base layer's. */
 export type KeyMeaning =
   /** The layer sets this key. */
   | { source: "own"; action: ActionConfig }
-  /** Transparent: a lower layer sets it (`layerId`). */
+  /** Transparent: the base layer (`layerId`) sets it. */
   | { source: "below"; action: ActionConfig; layerId: string }
-  /** No layer down to the base sets it: the key does its normal thing. */
+  /** Neither this layer nor the base sets it: the key does its normal thing. */
   | { source: "passthrough" };
 
-/** Looks up `key` on layer `index`, then on each layer below it (spec F-LAY-1). */
+/**
+ * Looks up `key` on layer `index`, then on the base layer (spec F-LAY-1). Not on the layers listed
+ * between them: the engine falls through the *active* layers only, and a layer switched on from
+ * the base sits right on top of it. Holding Left Alt for "Alt nav" makes Base → Alt nav active,
+ * so a key Alt nav doesn't set does what Base does, whatever other layers set it to.
+ */
 export function keyMeaning(layers: LayerConfig[], index: number, key: KeyName): KeyMeaning {
-  for (let i = index; i >= 0; i--) {
+  // `new Set`: on the base layer itself, look once.
+  for (const i of new Set([index, 0])) {
     const layer = layers[i];
     const action = layer?.keys?.[key];
     if (layer !== undefined && action !== undefined) {

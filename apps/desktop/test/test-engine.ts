@@ -5,7 +5,7 @@
  * devices at all), and `--only-device` with a unique name as a second guard. It never touches
  * real keyboards or the user's `keyrift.service`.
  */
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,17 +18,8 @@ const REPO_DIR = join(import.meta.dirname, "../../..");
 /** A profile with one empty layer: every key does its normal thing. */
 const EMPTY_PROFILE = { version: 1, name: "Test", layers: [{ id: "base" }] };
 
-let built = false;
-
-/** Builds the engine once per test run, so tests always run the current source. */
+/** The engine, built from the current source by test/global-setup.ts. */
 function engineBinary(): string {
-  if (!built) {
-    execFileSync("cargo", ["build", "--quiet", "--package", "keyrift"], {
-      cwd: REPO_DIR,
-      stdio: ["ignore", "ignore", "inherit"],
-    });
-    built = true;
-  }
   return join(REPO_DIR, "target/debug/keyrift");
 }
 

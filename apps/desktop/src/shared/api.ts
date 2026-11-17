@@ -4,7 +4,15 @@
  */
 import type { DeviceMatch, Profile, SchemaIssue, Settings } from "@keyrift/config-types";
 
-import type { EngineEvent, HelloResult, Method, ParamsOf, ResultOf, RpcError } from "./protocol.ts";
+import type {
+  EngineEvent,
+  HelloResult,
+  LogLevel,
+  Method,
+  ParamsOf,
+  ResultOf,
+  RpcError,
+} from "./protocol.ts";
 
 /**
  * How a call ended. Errors are returned as data, not thrown: a thrown error loses everything but
@@ -86,6 +94,96 @@ export type ConfigApi = {
     probablyMouse: boolean,
     remap: boolean,
   ): Promise<ConfigOutcome<null>>;
+  /**
+   * Changes settings from the Settings screen in `settings.json`, keeping the rest of the file.
+   * Each group given is merged into the file's (e.g. `{ ui: { theme: "light" } }` keeps the other
+   * `ui` fields). The engine reloads the file and applies the change.
+   */
+  updateSettings(changes: SettingsChanges): Promise<ConfigOutcome<null>>;
+};
+
+/** The parts of `settings.json` the Settings screen changes, each group in part. */
+export type SettingsChanges = {
+  tapHold?: Partial<NonNullable<Settings["tapHold"]>>;
+  emergencyRelease?: Partial<NonNullable<Settings["emergencyRelease"]>>;
+  logLevel?: Settings["logLevel"];
+  ui?: Partial<NonNullable<Settings["ui"]>>;
+};
+
+/** Whether the engine's user unit starts with the desktop session (`systemctl --user is-enabled`). */
+export type Autostart = "enabled" | "disabled" | "not-installed";
+
+/** What a system command gave, or why it failed (e.g. systemctl's error message). */
+export type SystemOutcome<T> = { ok: true; value: T } | { ok: false; message: string };
+
+/** `settings.ui.theme`: "system" follows the desktop's light/dark preference. */
+export type Theme = NonNullable<NonNullable<Settings["ui"]>["theme"]>;
+
+/** The system around the app: the engine's systemd unit and the window's light/dark theme. */
+export type SystemApi = {
+  /** Whether the window should be dark: the theme setting, or for "system" the desktop's. */
+  dark(): Promise<boolean>;
+  /** Calls `listener` when that changes. Returns a function that stops it. */
+  onDarkChange(listener: (dark: boolean) => void): () => void;
+  autostart(): Promise<SystemOutcome<Autostart>>;
+  /**
+   * Enables or disables the unit (`systemctl --user enable/disable`) and answers with the new
+   * state; a running engine keeps running.
+   */
+  setAutostart(enabled: boolean): Promise<SystemOutcome<Autostart>>;
+};
+
+/** One entry of the engine's log, from journald (spec §7.3 Logs). */
+export type LogEntry = {
+  /** The journal's id for the entry: unique, for React's `key`. */
+  cursor: string;
+  /** When it was logged, ms since 1970. */
+  timeMs: number;
+  level: LogLevel;
+  message: string;
+  /** "systemd" for systemd's own lines about the unit (started, stopped, crashed). */
+  source: "engine" | "systemd";
+};
+
+/** The engine's log, as the page sees it (main runs journalctl). */
+export type LogsApi = {
+  /**
+   * Starts following the log: the recent entries, then new ones as they come, to `onEntries`.
+   * Starting again restarts from the recent entries.
+   */
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  /** Calls `listener` with each batch of entries, oldest first. Returns a function that stops it. */
+  onEntries(listener: (entries: LogEntry[]) => void): () => void;
+  /** Calls `listener` when the log can't be read (e.g. journalctl is missing). */
+  onError(listener: (message: string) => void): () => void;
+};
+
+/** One check of the setup wizard (spec §9.3). */
+export type SetupCheck = {
+  id: "groups" | "devices" | "uinput-boot" | "remappers" | "service";
+  title: string;
+  /** "fail": Keyrift can't work like this; "warn": it works, but something needs attention. */
+  status: "ok" | "warn" | "fail";
+  /** What was found, in a sentence or two. */
+  detail: string;
+  /** What the wizard can fix: "system" with one password prompt, "service" without. */
+  fix: SetupFix | null;
+  /** Commands for the user to run themselves (e.g. stopping another remapper). */
+  commands: readonly string[];
+};
+
+export type SetupFix = "system" | "service";
+
+/** The setup wizard's checks and fixes (main runs them). */
+export type SetupApi = {
+  checks(): Promise<SetupCheck[]>;
+  /** Runs a fix: "system" asks for the password once (pkexec); "service" installs the user unit. */
+  fix(kind: SetupFix): Promise<SystemOutcome<null>>;
+  /** True until the wizard was finished or skipped once. */
+  firstRun(): Promise<boolean>;
+  /** Remembers that the wizard was finished or skipped. */
+  markDone(): Promise<void>;
 };
 
 export type KeyriftApi = {
@@ -93,4 +191,7 @@ export type KeyriftApi = {
   versions: { electron: string; chrome: string; node: string; v8: string };
   engine: EngineApi;
   config: ConfigApi;
+  logs: LogsApi;
+  system: SystemApi;
+  setup: SetupApi;
 };

@@ -7,27 +7,21 @@
  * engine's private input folder. The helper also grabs the test engine's output keyboard, so keys
  * the engine passes through are never typed into the desktop.
  */
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { accessSync, constants, rmSync, symlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import type { KeyName } from "@keyrift/config-types";
 
-import type { TestEngine } from "./test-engine.ts";
+import type { EngineClient } from "../src/main/engine/client.ts";
+import { TestEngine } from "./test-engine.ts";
 
 const REPO_DIR = join(import.meta.dirname, "../../..");
 
-let built = false;
-
+/** The helper, built by test/global-setup.ts. */
 function helperBinary(): string {
-  if (!built) {
-    execFileSync("cargo", ["build", "--quiet", "--package", "keyrift-test-keyboard"], {
-      cwd: REPO_DIR,
-      stdio: ["ignore", "ignore", "inherit"],
-    });
-    built = true;
-  }
   return join(REPO_DIR, "target/debug/keyrift-test-keyboard");
 }
 
@@ -38,6 +32,20 @@ export function uinputAvailable(): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Waits until this user can open `node` (up to 5 s). */
+async function readable(node: string): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (true) {
+    try {
+      accessSync(node, constants.R_OK);
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+      await sleep(10);
+    }
   }
 }
 
@@ -70,6 +78,11 @@ export class TestKeyboard {
       throw new Error("keyrift-test-keyboard exited before creating the keyboard");
     }
     try {
+      // udev gives the new node to the `input` group a moment after it appears. The engine skips a
+      // node it can't open and rescans on the node's permission change, but that event only fires
+      // in /dev/input, not in the test's input folder: linked too early (under load), the keyboard
+      // would never be grabbed.
+      await readable(node);
       // The engine watches its input folder, so the new link counts as a plugged-in keyboard.
       keyboard.#link = join(engine.inputDir, basename(node));
       symlinkSync(node, keyboard.#link);
@@ -123,4 +136,47 @@ export class TestKeyboard {
     if (waiter !== undefined) waiter(line);
     else if (line !== null) this.#lines.push(line);
   }
+}
+
+/**
+ * Waits until the engine has grabbed `count` devices; fails after 15 s. Usually it takes well under
+ * a second, but with every GUI test file running at once (several Electron apps and engines) 5 s
+ * was sometimes not enough.
+ */
+async function waitGrabbed(client: EngineClient, count: number): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  while (true) {
+    const status = await client.call("status.get", {});
+    if (status.devices.grabbed === count) return;
+    if (status.devices.blocked.length > 0) {
+      // Keys are only typed once the test engine holds the keyboard, so nothing leaked.
+      throw new Error(
+        "another program grabbed the test keyboard first, probably a keyrift.service older " +
+          "than the rule that makes normal engines skip `keyrift-test-*` devices: update it",
+      );
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`engine grabbed ${status.devices.grabbed} devices, expected ${count}`);
+    }
+    await sleep(20);
+  }
+}
+
+/**
+ * A private engine (with `profile`, if given) and a virtual keyboard that only it grabs. Their
+ * shutdown is pushed onto `cleanup`, for the test's afterEach to run.
+ */
+export async function engineWithKeyboard(
+  cleanup: (() => Promise<void>)[],
+  options: { profile?: object } = {},
+) {
+  const engine = await TestEngine.start(options);
+  cleanup.push(() => engine.stop());
+  const keyboard = await TestKeyboard.attach(engine);
+  cleanup.push(() => keyboard.close());
+  const client = await engine.connect();
+  cleanup.push(() => client.close());
+  // Type nothing until the test engine holds the keyboard.
+  await waitGrabbed(client, 1);
+  return { engine, keyboard, client };
 }

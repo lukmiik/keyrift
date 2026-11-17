@@ -1,15 +1,14 @@
 /**
- * The engine state as a short label, e.g. "Running" or "Not connected (the engine stopped)"
- * (spec §7.1).
+ * The engine state as a coloured dot and a short label, e.g. "● Active" or "● Not connected (the
+ * engine stopped)" (spec §7.1).
  */
-import { Badge } from "@/components/ui/badge.tsx";
+import { cn } from "cn";
 
 import { type EngineState, stateLabel } from "../../shared/protocol.ts";
+import { StatusDot, type StatusTone } from "./StatusDot.tsx";
 
 /** What the pill can show: an engine state, or that there is no engine to ask. */
 export type PillState = EngineState | "connecting" | "offline";
-/** Badge variants the pill uses; the Badge writes it to `data-variant`, which tests check. */
-export type PillVariant = "default" | "secondary" | "destructive" | "outline";
 
 type StatusPillProps = {
   state: PillState;
@@ -24,32 +23,39 @@ function pillLabel(state: PillState, reason: string | undefined): string {
       return "Connecting…";
     case "offline":
       return reason ? `Not connected (${reason})` : "Not connected";
+    // "Active", like a device that is remapped on the Devices screen.
+    case "running":
+      return "Active";
     default:
       return stateLabel(state);
   }
 }
 
-/** Badge colour for each pill state: red when remapping is off because of a problem. */
-function pillVariant(state: PillState): PillVariant {
+/** Dot colour for each state: green while remapping, amber while waiting, red on a problem. */
+export function pillTone(state: PillState): StatusTone {
   switch (state) {
     case "running":
-      return "default";
+      return "good";
     case "paused":
-      return "outline";
+    case "connecting":
+      return "waiting";
     case "released":
     case "error":
-      return "destructive";
-    case "connecting":
     case "offline":
-      return "secondary";
+      return "problem";
   }
 }
 
 export function StatusPill({ state, reason }: StatusPillProps) {
   // role="status": screen readers announce changes; tests and Playwright find it by this role.
   return (
-    <Badge role="status" variant={pillVariant(state)} data-state={state}>
-      {pillLabel(state, reason)}
-    </Badge>
+    <StatusDot
+      role="status"
+      data-state={state}
+      tone={pillTone(state)}
+      // Brighter than the details next to it, red on a problem.
+      className={cn("font-medium", pillTone(state) !== "problem" && "text-foreground")}
+      label={pillLabel(state, reason)}
+    />
   );
 }

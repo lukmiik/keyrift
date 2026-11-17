@@ -10,8 +10,9 @@ import type { ConfigApi, EngineApi } from "../../shared/api.ts";
 import { deviceMatch, sameDevice, vidPid } from "../../shared/devices.ts";
 import type { DeviceGroup, DeviceMember } from "../../shared/protocol.ts";
 import { useDevices } from "../engine/useDevices.ts";
-import { Badge } from "./ui/badge.tsx";
 import { Switch } from "./ui/switch.tsx";
+import { ScreenTitle } from "./ScreenTitle.tsx";
+import { StatusDot, type StatusTone } from "./StatusDot.tsx";
 
 type DevicesScreenProps = {
   engine: EngineApi;
@@ -88,11 +89,12 @@ export function DevicesScreen({ engine, config }: DevicesScreenProps) {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold">Devices</h1>
-        <label className="flex items-center gap-2 text-sm">
-          <Switch checked={showHidden} onCheckedChange={setShowHidden} />
+      <ScreenTitle title="Devices" />
+      {/* pr-3 = the rows' padding, so this switch lines up with the rows' switches. */}
+      <div className="flex items-center justify-end pr-3">
+        <label className="flex items-center gap-3 text-sm text-muted-foreground">
           Show hidden devices
+          <Switch checked={showHidden} onCheckedChange={setShowHidden} />
         </label>
       </div>
       {devices === null && (
@@ -128,7 +130,7 @@ export function DevicesScreen({ engine, config }: DevicesScreenProps) {
               key={id}
               name={device.name}
               device={device}
-              status={{ label: "Not connected", variant: "outline" }}
+              status={{ label: "Not connected", tone: "off" }}
               subDevices={[]}
               // Remembered keyboards are excluded; remembered mice are included.
               remapped={shownRemap(id, probablyMouse)}
@@ -144,14 +146,16 @@ export function DevicesScreen({ engine, config }: DevicesScreenProps) {
 
 type DeviceStatus = {
   label: string;
-  variant: "default" | "secondary" | "destructive" | "outline";
+  tone: StatusTone;
+  /** More about the status, shown as a tooltip (e.g. the engine's message for a busy device). */
+  detail?: string;
 };
 
 type DeviceRowProps = {
   name: string;
   device: DeviceMatch;
   status: DeviceStatus;
-  /** Sub device nodes in the group; shown when there is more than one. */
+  /** The group's device nodes, listed under Details. */
   subDevices: DeviceMember[];
   remapped: boolean;
   disabled: boolean;
@@ -168,32 +172,36 @@ function DeviceRow({
   onRemap,
 }: DeviceRowProps) {
   return (
-    <li className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
-      <div className="mr-auto flex flex-col">
-        <span className="font-medium">{name}</span>
-        <span className="text-muted-foreground">{vidPid(device)}</span>
-        {subDevices.length > 1 && (
-          <ul aria-label="Sub-devices" className="text-xs text-muted-foreground">
-            {subDevices.map((subDevice) => (
-              // The path names one node and stays the same while it exists (names can repeat).
-              <li key={subDevice.path}>
-                {subDevice.name + " · " + subDevice.path.split("/").at(-1)}
-              </li>
-            ))}
-          </ul>
-        )}
+    <li className="flex flex-col gap-1 rounded-md border px-3 py-2 text-sm">
+      {/* One line: name on the left; status and switch on the right, centred on the name. */}
+      <div className="flex items-center gap-4">
+        <span className="mr-auto font-medium">{name}</span>
+        <StatusDot tone={status.tone} label={status.label} detail={status.detail} />
+        <Switch
+          aria-label={`Remap ${name}`}
+          checked={remapped}
+          disabled={disabled}
+          onCheckedChange={onRemap}
+        />
       </div>
-      {/* No colour fade: the text changes at once, so a fade showed the new text in the old
-          colour. A minimum width keeps the pill from changing size between short labels. */}
-      <Badge variant={status.variant} className="min-w-20 transition-none">
-        {status.label}
-      </Badge>
-      <Switch
-        aria-label={`Remap ${name}`}
-        checked={remapped}
-        disabled={disabled}
-        onCheckedChange={onRemap}
-      />
+      {/* The technical identity, folded away: most people only need the name. <details> opens
+          and closes by itself, without any state of ours. */}
+      <details className="text-xs text-muted-foreground">
+        <summary className="w-fit cursor-pointer select-none">Details</summary>
+        <div className="mt-1 flex flex-col gap-1 pl-3">
+          <span>USB ID {vidPid(device)}</span>
+          {subDevices.length > 0 && (
+            <ul aria-label="Input devices">
+              {subDevices.map((subDevice) => (
+                // The path names one node and stays the same while it exists (names repeat).
+                <li key={subDevice.path}>
+                  {subDevice.name + " · " + subDevice.path.split("/").at(-1)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </li>
   );
 }
@@ -215,26 +223,30 @@ export function isShown(group: DeviceGroup, showHidden: boolean): boolean {
   }
 }
 
-/** The grab status badge (spec §7.3: grabbed / excluded / busy). */
+/** The device's status (spec §7.3), in plain words: active / off / used by another program. */
 export function deviceStatus(group: DeviceGroup): DeviceStatus {
   switch (group.decision) {
     case "grab": {
       const blocked = group.members.find((member) => member.blocked !== null);
       if (blocked !== undefined) {
-        return { label: `Busy: ${blocked.blocked}`, variant: "destructive" };
+        return {
+          label: "Used by another program",
+          detail: blocked.blocked ?? undefined,
+          tone: "problem",
+        };
       }
       return group.members.every((member) => member.grabbed)
-        ? { label: "Grabbed", variant: "default" }
-        : { label: "Not grabbed yet", variant: "outline" };
+        ? { label: "Active", tone: "good" }
+        : { label: "Starting…", tone: "waiting" };
     }
     case "excluded":
-      return { label: "Excluded", variant: "secondary" };
+      return { label: "Off", tone: "off" };
     case "hidden":
-      return { label: "Hidden: probably a mouse", variant: "secondary" };
+      return { label: "Probably a mouse", tone: "off" };
     case "filtered":
-      return { label: "Filtered (test)", variant: "outline" };
+      return { label: "Filtered (test)", tone: "off" };
     case "notKeyboard":
-      return { label: "Not a keyboard", variant: "outline" };
+      return { label: "Not a keyboard", tone: "off" };
   }
 }
 

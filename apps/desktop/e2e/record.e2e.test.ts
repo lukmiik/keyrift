@@ -9,11 +9,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
-import type { EngineClient } from "../src/main/engine/client.ts";
 import { watchReloads } from "../test/config-reloads.ts";
 import { TestApp } from "../test/test-app.ts";
-import { TestEngine } from "../test/test-engine.ts";
-import { TestKeyboard, uinputAvailable } from "../test/test-keyboard.ts";
+import { engineWithKeyboard, uinputAvailable } from "../test/test-keyboard.ts";
 
 let cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -23,42 +21,9 @@ afterEach(async () => {
   cleanup = [];
 });
 
-/** Waits until the engine has grabbed `count` devices; fails after 5 s. */
-async function waitGrabbed(client: EngineClient, count: number): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (true) {
-    const status = await client.call("status.get", {});
-    if (status.devices.grabbed === count) return;
-    if (status.devices.blocked.length > 0) {
-      // Keys are only typed once the test engine holds the keyboard, so nothing leaked.
-      throw new Error(
-        "another program grabbed the test keyboard first, probably a keyrift.service older " +
-          "than the rule that makes normal engines skip `keyrift-test-*` devices: update it",
-      );
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`engine grabbed ${status.devices.grabbed} devices, expected ${count}`);
-    }
-    await sleep(20);
-  }
-}
-
-/** A private engine with a virtual keyboard that only it grabs. */
-async function engineWithKeyboard() {
-  const engine = await TestEngine.start();
-  cleanup.push(() => engine.stop());
-  const keyboard = await TestKeyboard.attach(engine);
-  cleanup.push(() => keyboard.close());
-  const client = await engine.connect();
-  cleanup.push(() => client.close());
-  // Type nothing until the test engine holds the keyboard.
-  await waitGrabbed(client, 1);
-  return { engine, keyboard, client };
-}
-
 describe.skipIf(!uinputAvailable())("test keyboard", () => {
   it("reaches only the test engine, which records it", { timeout: 60_000 }, async () => {
-    const { keyboard, client } = await engineWithKeyboard();
+    const { keyboard, client } = await engineWithKeyboard(cleanup);
 
     await client.call("record.start", {});
     await keyboard.tap("KEY_F2");
@@ -70,7 +35,7 @@ describe.skipIf(!uinputAvailable())("test keyboard", () => {
 
 describe.skipIf(!uinputAvailable())("Record buttons", () => {
   it("take keys typed on the virtual keyboard", { timeout: 60_000 }, async () => {
-    const { engine, keyboard } = await engineWithKeyboard();
+    const { engine, keyboard } = await engineWithKeyboard(cleanup);
     const reloads = await watchReloads(engine);
     cleanup.push(() => reloads.close());
     const app = await TestApp.start({ socketPath: engine.socketPath, configDir: engine.configDir });

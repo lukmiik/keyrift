@@ -7,6 +7,9 @@ import { App } from "../App.tsx";
 import { testProfile } from "../config/test-profile.ts";
 import { FakeConfig } from "../testing/fake-config.ts";
 import { FakeEngine } from "../testing/fake-engine.ts";
+import { FakeLogs } from "../testing/fake-logs.ts";
+import { FakeSystem } from "../testing/fake-system.ts";
+import { FakeSetup } from "../testing/fake-setup.ts";
 
 afterEach(cleanup);
 
@@ -14,8 +17,20 @@ const VERSIONS = { electron: "1", chrome: "1", node: "1", v8: "1" };
 
 /** The whole app with profiles "daily" (active) and "work". */
 async function renderApp() {
-  const config = new FakeConfig({ daily: testProfile(), work: { version: 1, name: "work" } });
-  render(<App engine={new FakeEngine()} config={config} versions={VERSIONS} />);
+  const config = new FakeConfig({
+    daily: testProfile(),
+    work: { version: 1, name: "work", layers: [{ id: "base", name: "Work base" }] },
+  });
+  render(
+    <App
+      logs={new FakeLogs()}
+      system={new FakeSystem()}
+      setup={new FakeSetup()}
+      engine={new FakeEngine()}
+      config={config}
+      versions={VERSIONS}
+    />,
+  );
   const user = userEvent.setup();
   await screen.findByRole("button", { name: /Profile: daily/ });
   return { config, user };
@@ -37,7 +52,7 @@ describe("ProfileMenu", () => {
     expect(await screen.findByRole("button", { name: /Profile: work/ })).toBeDefined();
     expect(config.active).toBe("work");
     // The Keymap screen opened the other profile.
-    expect(await screen.findByText("profiles/work.json", { exact: false })).toBeDefined();
+    expect(await screen.findByRole("tab", { name: "Work base" })).toBeDefined();
   });
 
   it("creates a profile and makes it active", async () => {

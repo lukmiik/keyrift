@@ -73,6 +73,20 @@ describe("keyMeaning", () => {
     });
   });
 
+  it("skips the layers listed between the base and this one", () => {
+    // Like the daily profile: Workspaces is listed before Alt nav but isn't active with it.
+    const workspaces: LayerConfig = {
+      id: "workspaces",
+      keys: { KEY_D: { type: "key", key: "KEY_D", mods: ["LeftSuper"] } },
+    };
+    const layers = [...LAYERS.slice(0, 1), workspaces, ...LAYERS.slice(1)];
+    expect(keyMeaning(layers, 2, "KEY_D")).toEqual({ source: "passthrough" });
+    expect(keyMeaning(layers, 2, "KEY_CAPSLOCK")).toMatchObject({
+      source: "below",
+      layerId: "base",
+    });
+  });
+
   it("passes a key through that no layer sets", () => {
     expect(keyMeaning(LAYERS, 1, "KEY_Q")).toEqual({ source: "passthrough" });
   });

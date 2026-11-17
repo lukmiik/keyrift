@@ -1,45 +1,45 @@
 /**
- * The parts the Keymap and Shortcuts screens share: the screen's heading with the open profile's
- * file, save status and undo/redo, and the message shown while the profile can't be edited.
+ * The open profile's undo/redo and save status, shown in the header next to the profile selector:
+ * they belong to the profile, not to one screen (Keymap and Shortcuts edit the same profile). Also
+ * the message a screen shows while the profile can't be edited.
  */
-import { Redo2, Undo2 } from "lucide-react";
+import { Check, LoaderCircle, Redo2, TriangleAlert, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { ProfileEditor } from "../config/useProfileEditor.ts";
+import { ScreenTitle } from "./ScreenTitle.tsx";
 import { Button } from "./ui/button.tsx";
 
 export type ReadyProfile = Extract<ProfileEditor, { status: "ready" }>;
 
-/** Heading plus "Profile daily · profiles/daily.json", save status, Undo and Redo. */
-export function ProfileToolbar({ title, profile }: { title: string; profile: ReadyProfile }) {
-  const { name, editor, dispatch, save } = profile;
+/** Undo, Redo and the save status; nothing while the profile isn't loaded. */
+export function ProfileToolbar({ profile }: { profile: ProfileEditor }) {
+  if (profile.status !== "ready") return null;
+  const { editor, dispatch, save } = profile;
   return (
-    <>
-      <h1 className="text-xl font-semibold">{title}</h1>
-      <div className="flex items-center gap-2">
-        <p className="mr-auto text-sm">
-          Profile <span className="font-medium">{name}</span>
-          <span className="text-muted-foreground"> · profiles/{name}.json</span>
-        </p>
-        <SaveStatus save={save} />
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={editor.past.length === 0}
-          onClick={() => dispatch({ type: "undo" })}
-        >
-          <Undo2 /> Undo
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={editor.future.length === 0}
-          onClick={() => dispatch({ type: "redo" })}
-        >
-          <Redo2 /> Redo
-        </Button>
-      </div>
-    </>
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Undo"
+        title="Undo"
+        disabled={editor.past.length === 0}
+        onClick={() => dispatch({ type: "undo" })}
+      >
+        <Undo2 />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Redo"
+        title="Redo"
+        disabled={editor.future.length === 0}
+        onClick={() => dispatch({ type: "redo" })}
+      >
+        <Redo2 />
+      </Button>
+      <SaveStatus save={save} />
+    </div>
   );
 }
 
@@ -54,7 +54,7 @@ export function ProfileUnavailable({
   if (profile.status === "ready") return null;
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <ScreenTitle title={title} />
       <p className="text-sm text-muted-foreground">
         {profile.status === "loading" ? (
           "Loading the profile…"
@@ -73,23 +73,31 @@ export function ProfileUnavailable({
  * `role="status"`: that is the engine pill's role in the header).
  */
 function SaveStatus({ save }: { save: ReadyProfile["save"] }) {
-  if (save === "saved") {
+  if (save === "saved" || save === "unsaved") {
+    const saving = save === "unsaved";
     return (
-      <span aria-live="polite" className="text-sm text-muted-foreground">
-        Saved
-      </span>
-    );
-  }
-  if (save === "unsaved") {
-    return (
-      <span aria-live="polite" className="text-sm text-muted-foreground">
-        Saving…
+      <span
+        aria-live="polite"
+        className="ml-1 flex items-center gap-1 text-sm text-muted-foreground"
+      >
+        {saving ? (
+          <LoaderCircle className="size-3.5 animate-spin" />
+        ) : (
+          <Check className="size-3.5" />
+        )}
+        {saving ? "Saving…" : "Saved"}
       </span>
     );
   }
   return (
-    <span aria-live="polite" className="text-sm text-destructive">
-      Not saved: {save.problem.message}
+    <span
+      aria-live="polite"
+      // The whole message as a tooltip: the header has little room.
+      title={save.problem.message}
+      className="ml-1 flex max-w-64 items-center gap-1 truncate text-sm text-destructive"
+    >
+      <TriangleAlert className="size-3.5 shrink-0" />
+      <span className="truncate">Not saved: {save.problem.message}</span>
     </span>
   );
 }

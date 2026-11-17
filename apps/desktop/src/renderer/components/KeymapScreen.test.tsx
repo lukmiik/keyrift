@@ -8,6 +8,9 @@ import { App } from "../App.tsx";
 import { deepFreeze } from "../config/test-profile.ts";
 import { FakeConfig } from "../testing/fake-config.ts";
 import { FakeEngine } from "../testing/fake-engine.ts";
+import { FakeLogs } from "../testing/fake-logs.ts";
+import { FakeSystem } from "../testing/fake-system.ts";
+import { FakeSetup } from "../testing/fake-setup.ts";
 import { newLayerId } from "./KeymapScreen.tsx";
 
 afterEach(cleanup);
@@ -35,6 +38,9 @@ const PROFILE: Profile = deepFreeze({
 async function renderKeymap() {
   render(
     <App
+      logs={new FakeLogs()}
+      system={new FakeSystem()}
+      setup={new FakeSetup()}
       engine={new FakeEngine()}
       config={new FakeConfig({ daily: PROFILE })}
       versions={VERSIONS}

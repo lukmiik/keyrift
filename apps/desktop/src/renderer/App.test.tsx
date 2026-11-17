@@ -7,6 +7,9 @@ import { App } from "./App.tsx";
 import { testProfile } from "./config/test-profile.ts";
 import { FakeConfig } from "./testing/fake-config.ts";
 import { FakeEngine } from "./testing/fake-engine.ts";
+import { FakeLogs } from "./testing/fake-logs.ts";
+import { FakeSystem } from "./testing/fake-system.ts";
+import { FakeSetup } from "./testing/fake-setup.ts";
 
 afterEach(cleanup);
 
@@ -14,7 +17,16 @@ const VERSIONS = { electron: "45.3.2", chrome: "1", node: "2", v8: "3" };
 
 /** Renders the app with fakes; the active profile "daily" is `testProfile()`. */
 function renderApp(config = new FakeConfig({ daily: testProfile() })) {
-  render(<App engine={new FakeEngine()} config={config} versions={VERSIONS} />);
+  render(
+    <App
+      logs={new FakeLogs()}
+      system={new FakeSystem()}
+      setup={new FakeSetup()}
+      engine={new FakeEngine()}
+      config={config}
+      versions={VERSIONS}
+    />,
+  );
 }
 
 describe("App", () => {
@@ -42,7 +54,7 @@ describe("App", () => {
     renderApp();
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Settings" }));
-    expect(screen.getByText(/Electron 45\.3\.2/)).toBeDefined();
+    expect((await screen.findByRole("region", { name: "About" })).textContent).toContain("45.3.2");
   });
 
   it("shows the active profile's layers on the Keymap screen", async () => {

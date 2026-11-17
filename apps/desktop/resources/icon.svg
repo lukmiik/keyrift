@@ -1,0 +1,24 @@
+<!-- Keyrift app icon: the wordmark's K, sliced through the middle with the lower half slipped
+     sideways in sky blue (the colour of a remapped key). Source for icon.png:
+     after changing it, run `vp run icon` (resources/render-icon.cjs). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1c1f"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <clipPath id="top"><rect x="0" y="0" width="512" height="250"/></clipPath>
+    <clipPath id="bottom"><rect x="0" y="250" width="512" height="262"/></clipPath>
+    <path id="k" d="M12 6h12v52H12zM24 28 43 6h14L36 30.5 58 58H44L24 34z"/>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bg)" stroke="#2e2e33" stroke-width="4"/>
+  <!-- The K is drawn in 64-unit space (stem at x 12-24, arms to x 58, y 6-58), scaled ×5.4. The
+       clips sit outside the scaled groups, so their coordinates are in the icon's 512 space: the cut
+       runs at y 250, where the arms meet the stem. -->
+  <g clip-path="url(#top)">
+    <g transform="translate(57 83) scale(5.4)" fill="#fafafa"><use href="#k"/></g>
+  </g>
+  <g clip-path="url(#bottom)">
+    <g transform="translate(77 83) scale(5.4)" fill="#38bdf8"><use href="#k"/></g>
+  </g>
+</svg>

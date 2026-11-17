@@ -2,6 +2,7 @@
  * The visual keyboard (spec §7.2, F-UI-1): every key of the chosen layout, labelled with what it
  * does on the shown layer and coloured by kind. Transparent keys on upper layers are dimmed and
  * show what they fall through to. Click a key (or Enter) to select it; arrow keys move between keys.
+ * Without `onSelect` it only shows (the Tester screen), lighting up the keys in `lit`.
  */
 import type { KeyName, LayerConfig } from "@keyrift/config-types";
 import { cn } from "cn";
@@ -29,11 +30,21 @@ type KeyboardProps = {
   /** The profile's layers; the keyboard shows layer number `layerIndex`. */
   layers: LayerConfig[];
   layerIndex: number;
-  selected: KeyName | null;
-  onSelect: (key: KeyName) => void;
+  selected?: KeyName | null;
+  /** A key was picked, or null: the selected key was clicked again, or Escape was pressed. */
+  onSelect?: (key: KeyName | null) => void;
+  /** Keys shown as held down (the Tester's live presses). */
+  lit?: ReadonlySet<string>;
 };
 
-export function Keyboard({ keys, layers, layerIndex, selected, onSelect }: KeyboardProps) {
+export function Keyboard({
+  keys,
+  layers,
+  layerIndex,
+  selected = null,
+  onSelect,
+  lit,
+}: KeyboardProps) {
   // The key that is the Tab stop. Not state you see; it only decides where Tab lands.
   const [focusKey, setFocusKey] = useState<KeyName | null>(null);
   // The DOM buttons by key, so the arrow keys can move the focus. A ref keeps a value between
@@ -45,6 +56,10 @@ export function Keyboard({ keys, layers, layerIndex, selected, onSelect }: Keybo
   const height = Math.max(...keys.map((spec) => spec.y + (spec.h ?? 1)));
 
   function onKeyDown(event: KeyboardEvent, key: KeyName) {
+    if (event.key === "Escape") {
+      onSelect?.(null);
+      return;
+    }
     const direction = ARROW_DIRECTIONS[event.key];
     if (direction === undefined) return;
     event.preventDefault(); // Don't scroll the page.
@@ -62,7 +77,9 @@ export function Keyboard({ keys, layers, layerIndex, selected, onSelect }: Keybo
       className="relative shrink-0"
       // Set through the DOM (style property), which the page's CSP allows; a style="" attribute
       // in HTML would be blocked.
-      style={{ width: width * UNIT, height: height * UNIT }}
+      // Minus one gap: each key leaves its gap on the right and bottom, and the last ones would
+      // leave an empty strip, so the board would end 4 px past its keys.
+      style={{ width: width * UNIT - GAP, height: height * UNIT - GAP }}
     >
       {keys.map((spec) => {
         const meaning = keyMeaning(layers, layerIndex, spec.key);
@@ -76,15 +93,18 @@ export function Keyboard({ keys, layers, layerIndex, selected, onSelect }: Keybo
               else buttons.current.set(spec.key, element);
             }}
             type="button"
-            tabIndex={spec.key === tabStop ? 0 : -1}
-            aria-pressed={spec.key === selected}
+            // Only shows: no Tab stop, so Tab skips the whole keyboard.
+            tabIndex={onSelect !== undefined && spec.key === tabStop ? 0 : -1}
+            aria-pressed={onSelect !== undefined ? spec.key === selected : undefined}
+            data-lit={lit?.has(spec.key) === true ? "true" : undefined}
             aria-label={`${keyName(spec.key)}: ${label}`}
             title={`${keyName(spec.key)}: ${label}`}
             data-kind={kind ?? "passthrough"}
             data-source={meaning.source}
             onClick={() => {
               setFocusKey(spec.key);
-              onSelect(spec.key);
+              // Like a toggle button (aria-pressed): clicking the selected key unselects it.
+              onSelect?.(spec.key === selected ? null : spec.key);
             }}
             onKeyDown={(event) => onKeyDown(event, spec.key)}
             className={cn(
@@ -94,6 +114,10 @@ export function Keyboard({ keys, layers, layerIndex, selected, onSelect }: Keybo
               // Keys that fall through to a lower layer are dimmed (spec §7.2).
               meaning.source !== "own" && layerIndex > 0 && "opacity-40",
               spec.key === selected && "ring-2 ring-primary",
+              onSelect === undefined && "cursor-default",
+              // Last, so it wins over the kind's colours and the dimming.
+              lit?.has(spec.key) === true &&
+                "border-emerald-600 bg-emerald-500/30 dark:border-emerald-400 dark:bg-emerald-500/40 text-foreground opacity-100",
             )}
             style={{
               left: spec.x * UNIT,

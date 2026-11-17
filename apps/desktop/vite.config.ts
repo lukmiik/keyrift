@@ -36,6 +36,12 @@ function devStyleCsp(): Plugin {
 }
 
 export default defineConfig({
+  test: {
+    // GUI tests start an engine and the app before their first step, which can take more than
+    // the default 5 s while other test files run in parallel.
+    testTimeout: 30_000,
+    globalSetup: ["test/global-setup.ts"],
+  },
   resolve: {
     // `@/…` = src/renderer/…, the import style shadcn's generated components use. Must match
     // `paths` in tsconfig.json and tsconfig.web.json.

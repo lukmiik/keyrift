@@ -40,7 +40,7 @@ export function KeyPicker({ label, value, onChange, recorder, recordId }: KeyPic
   const id = useId();
   const recording = recorder !== undefined && recorder.target === recordId;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
       <div className="flex items-center gap-2">
         <Combobox

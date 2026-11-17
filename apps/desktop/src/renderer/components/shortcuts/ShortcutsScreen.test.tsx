@@ -7,6 +7,9 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { App } from "../../App.tsx";
 import { FakeConfig } from "../../testing/fake-config.ts";
 import { FakeEngine } from "../../testing/fake-engine.ts";
+import { FakeLogs } from "../../testing/fake-logs.ts";
+import { FakeSystem } from "../../testing/fake-system.ts";
+import { FakeSetup } from "../../testing/fake-setup.ts";
 
 afterEach(cleanup);
 
@@ -21,7 +24,16 @@ const SUPER_C: ShortcutConfig = {
 async function openShortcuts(shortcuts: ShortcutConfig[]) {
   const engine = new FakeEngine();
   const profile: Profile = { version: 1, layers: [{ id: "base", keys: {} }], shortcuts };
-  render(<App engine={engine} config={new FakeConfig({ daily: profile })} versions={VERSIONS} />);
+  render(
+    <App
+      logs={new FakeLogs()}
+      system={new FakeSystem()}
+      setup={new FakeSetup()}
+      engine={engine}
+      config={new FakeConfig({ daily: profile })}
+      versions={VERSIONS}
+    />,
+  );
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: "Shortcuts" }));
   await screen.findByRole("button", { name: "Add shortcut" });
@@ -114,5 +126,38 @@ describe("Shortcuts screen", () => {
       .map((row) => row.classList.contains("bg-destructive/10"));
     expect(tinted).toEqual([false, true, false]);
     expect(screen.getByText(/The engine rejects a profile with two rules/)).toBeTruthy();
+  });
+
+  it("flags rules that an earlier rule always matches first", async () => {
+    const ctrlC = (mods: ShortcutConfig["trigger"]["mods"]): ShortcutConfig => ({
+      trigger: { mods, key: "KEY_C" },
+      action: { type: "none" },
+    });
+    await openShortcuts([ctrlC(["Ctrl"]), ctrlC(["LeftCtrl"])]);
+
+    expect(screen.getByText("Never used: rule 1 matches first")).toBeTruthy();
+    const tinted = within(screen.getByRole("table", { name: "Shortcuts" }))
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.classList.contains("bg-amber-500/10"));
+    expect(tinted).toEqual([false, true]);
+  });
+
+  it("moves a rule up, which makes a never-used rule work", async () => {
+    const ctrlC = (mods: ShortcutConfig["trigger"]["mods"]): ShortcutConfig => ({
+      trigger: { mods, key: "KEY_C" },
+      action: { type: "none" },
+    });
+    const { user } = await openShortcuts([ctrlC(["Ctrl"]), ctrlC(["LeftCtrl"])]);
+    expect(screen.getByRole("button", { name: "Move rule 1 up" }).hasAttribute("disabled")).toBe(
+      true,
+    );
+    expect(screen.getByRole("button", { name: "Move rule 2 down" }).hasAttribute("disabled")).toBe(
+      true,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Move rule 2 up" }));
+    expect(rows()).toEqual(["LCtrl+C → None", "Ctrl+C → None"]);
+    expect(screen.queryByText(/Never used/)).toBeNull();
   });
 });

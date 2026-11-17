@@ -1,9 +1,10 @@
 /**
- * The profile selector in the header (spec §7.1): switch the active profile, and create, rename,
+ * The profile selector at the bottom of the sidebar (spec §7.1), like the account switcher in
+ * Slack or Linear: switch the active profile, and create, rename,
  * duplicate or delete one. Every change saves the open profile first, so no edit is lost or
  * written under the wrong name.
  */
-import { ChevronDown } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 
 import type { ConfigApi, ConfigOutcome } from "../../shared/api.ts";
@@ -81,10 +82,26 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-          Profile: {active} <ChevronDown />
+        <DropdownMenuTrigger
+          // The visible text is split in two lines; this names the button as one phrase.
+          aria-label={`Profile: ${active}`}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted"
+        >
+          {/* The name's first letter, like an account's avatar. */}
+          <span
+            aria-hidden
+            className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold uppercase"
+          >
+            {active.slice(0, 1)}
+          </span>
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate font-medium">{active}</span>
+            <span className="text-xs text-muted-foreground">Profile</span>
+          </span>
+          <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
+        {/* Opens upwards: the button is at the bottom of the window. */}
+        <DropdownMenuContent side="top" className="w-56">
           <DropdownMenuRadioGroup value={active} onValueChange={(name) => void switchTo(name)}>
             {names.map((name) => (
               <DropdownMenuRadioItem key={name} value={name}>
@@ -107,7 +124,7 @@ export function ProfileMenu({ config, profiles, saveFirst }: ProfileMenuProps) {
         </DropdownMenuContent>
       </DropdownMenu>
       {error !== null && (
-        <span role="alert" className="text-sm text-destructive">
+        <span role="alert" className="block px-2 pt-1 text-xs text-destructive">
           {error}
         </span>
       )}

@@ -67,15 +67,15 @@ async function row(name: string): Promise<HTMLElement> {
 }
 
 describe("DevicesScreen", () => {
-  it("shows a keyboard with its VID:PID, sub-devices and grab status", async () => {
+  it("shows a keyboard with its status, and its USB ID and input devices under Details", async () => {
     renderScreen(new FakeEngine({ devices: [hyperx()] }));
 
     const item = await row("HyperX Alloy");
-    expect(item.textContent).toContain("0951:16d2");
+    expect(item.textContent).toContain("USB ID 0951:16d2");
     expect(item.textContent).toContain(
       "HyperX Alloy Consumer Control · event-HyperX Alloy Consumer Control",
     );
-    expect(item.textContent).toContain("Grabbed");
+    expect(item.textContent).toContain("Active");
     expect(
       screen.getByRole("switch", { name: "Remap HyperX Alloy" }).getAttribute("aria-checked"),
     ).toBe("true");
@@ -87,7 +87,8 @@ describe("DevicesScreen", () => {
     });
     renderScreen(new FakeEngine({ devices: [busy] }));
 
-    expect((await row("HyperX Alloy")).textContent).toContain("Busy: busy: held by kanata");
+    const badge = within(await row("HyperX Alloy")).getByText("Used by another program");
+    expect(badge.getAttribute("title")).toBe("busy: held by kanata");
   });
 
   it("excludes a keyboard with its toggle", async () => {
@@ -106,10 +107,10 @@ describe("DevicesScreen", () => {
     ]);
     // The switch moves at once, before the engine has reacted; the badge waits for the engine.
     expect(toggle.getAttribute("aria-checked")).toBe("false");
-    expect((await row("HyperX Alloy")).textContent).toContain("Grabbed");
+    expect((await row("HyperX Alloy")).textContent).toContain("Active");
 
     engine.setDevices([hyperx({ decision: "excluded" })]);
-    expect((await row("HyperX Alloy")).textContent).toContain("Excluded");
+    expect((await row("HyperX Alloy")).textContent).toContain("Off");
     expect(toggle.getAttribute("aria-checked")).toBe("false");
   });
 
@@ -131,7 +132,7 @@ describe("DevicesScreen", () => {
     await row("HyperX Alloy");
 
     engine.setDevices([hyperx({ decision: "excluded" })]);
-    expect((await row("HyperX Alloy")).textContent).toContain("Excluded");
+    expect((await row("HyperX Alloy")).textContent).toContain("Off");
   });
 
   it('shows a probable mouse only with "Show hidden devices"', async () => {
@@ -140,7 +141,7 @@ describe("DevicesScreen", () => {
     expect(screen.queryByText("Razer DeathAdder")).toBeNull();
 
     await userEvent.setup().click(screen.getByRole("switch", { name: "Show hidden devices" }));
-    expect((await row("Razer DeathAdder")).textContent).toContain("Hidden: probably a mouse");
+    expect((await row("Razer DeathAdder")).textContent).toContain("Probably a mouse");
   });
 
   it("lists excluded keyboards that aren't connected", async () => {

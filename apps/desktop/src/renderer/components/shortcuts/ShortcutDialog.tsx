@@ -97,8 +97,11 @@ export function ShortcutDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <fieldset aria-label="Trigger" className="flex flex-col gap-3 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">
+          {/* gap-4: the same space between fields as the Output fieldset's ActionEditor. */}
+          <fieldset aria-label="Trigger" className="flex flex-col gap-4 rounded-md border p-3">
+            {/* -ml-1 undoes the px-1 (room in the border line), so the title lines up with the
+                fields below it. */}
+            <legend className="-ml-1 px-1 text-sm font-medium">
               Trigger: {triggerLabel(draft.trigger)}
             </legend>
             <div className="flex flex-wrap items-end gap-2">
@@ -165,7 +168,7 @@ export function ShortcutDialog({
           </fieldset>
 
           <fieldset aria-label="Output" className="flex flex-col gap-3 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">Output</legend>
+            <legend className="-ml-1 px-1 text-sm font-medium">Output</legend>
             <ActionEditor
               action={draft.action}
               onChange={(action) => setDraft((d) => ({ ...d, action }))}

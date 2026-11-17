@@ -40,6 +40,12 @@ export function isProfileName(name: unknown): name is string {
 /** The engine's default when there is no `settings.json`. */
 const DEFAULT_PROFILE = "default";
 const SETTINGS_FILE = "settings.json";
+/** The parts of settings.json the Settings screen may change (`updateSettings`). */
+const SETTINGS_GROUPS = new Set(["tapHold", "emergencyRelease", "logLevel", "ui"]);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export class ConfigFiles {
   readonly dir: string;
@@ -96,6 +102,31 @@ export class ConfigFiles {
     const next = setRemapped(settings, device, probablyMouse, remap);
     if (next === settings) {
       return { ok: true, value: null };
+    }
+    return this.#writeJson(SETTINGS_FILE, next, validateSettings);
+  }
+
+  /**
+   * Merges `changes` from the Settings screen into `settings.json`, keeping the rest of the file.
+   * Only the groups the screen edits are taken; the result is validated before it is written.
+   */
+  async updateSettings(changes: unknown): Promise<ConfigOutcome<null>> {
+    if (typeof changes !== "object" || changes === null || Array.isArray(changes)) {
+      return problem(SETTINGS_FILE, "not a valid settings change");
+    }
+    const read = await this.readSettings();
+    if (!read.ok) {
+      return read;
+    }
+    const next: Record<string, unknown> = { ...(read.value ?? { version: 1 }) };
+    for (const [group, value] of Object.entries(changes)) {
+      if (!SETTINGS_GROUPS.has(group)) {
+        return problem(SETTINGS_FILE, `"${group}" can't be changed here`);
+      }
+      const current = next[group];
+      // Object groups (tapHold, ui…) are merged field by field; plain values (logLevel) replaced.
+      next[group] =
+        isPlainObject(value) && isPlainObject(current) ? { ...current, ...value } : value;
     }
     return this.#writeJson(SETTINGS_FILE, next, validateSettings);
   }

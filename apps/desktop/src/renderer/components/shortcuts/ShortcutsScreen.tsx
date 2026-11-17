@@ -1,19 +1,20 @@
 /**
  * The Shortcuts screen (spec §7.3, F-SC-1): the open profile's rules, trigger → output. Rules are
- * added and edited in a dialog; rules with the same trigger are flagged, because the engine
- * rejects such a profile.
+ * added and edited in a dialog. Rules with the same trigger are flagged red, because the engine
+ * rejects such a profile; rules that earlier rules always take first are flagged as never used.
  */
 import type { LayerConfig, ShortcutConfig } from "@keyrift/config-types";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "cn";
 
 import type { EngineApi } from "../../../shared/api.ts";
-import { duplicateOf, triggerLabel } from "../../config/shortcuts.ts";
+import { duplicateOf, neverUsed, triggerLabel } from "../../config/shortcuts.ts";
 import type { ProfileEditor } from "../../config/useProfileEditor.ts";
 import { useRecorder } from "../../engine/useRecorder.ts";
 import { actionLabel } from "../../keyboard/actions.ts";
-import { ProfileToolbar, ProfileUnavailable } from "../ProfileToolbar.tsx";
+import { ProfileUnavailable } from "../ProfileToolbar.tsx";
+import { ScreenTitle } from "../ScreenTitle.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { ShortcutDialog } from "./ShortcutDialog.tsx";
@@ -43,16 +44,16 @@ export function ShortcutsScreen({ profile, engine }: ShortcutsScreenProps) {
   const shortcuts = editor.present.shortcuts ?? [];
   const layers: LayerConfig[] = editor.present.layers ?? [];
   const duplicates = duplicateOf(shortcuts);
+  const unused = neverUsed(shortcuts);
 
   return (
     <section className="flex flex-col gap-4">
-      <ProfileToolbar title="Shortcuts" profile={profile} />
-      <p className="text-sm text-muted-foreground">
-        A rule replaces a key pressed with exactly the trigger's modifiers held. It applies to keys
-        that send a plain key after the keymap (including unchanged keys); the first matching rule
-        wins.
-      </p>
-      <div>
+      <ScreenTitle title="Shortcuts" />
+      <div className="flex items-start gap-6">
+        <p className="flex-1 text-sm text-muted-foreground">
+          Turn a key combination into another, e.g. Super+C into Ctrl+C. If two rules match, the
+          higher one wins.
+        </p>
         <Button variant="outline" size="sm" onClick={() => setDialog({ adding: true })}>
           <Plus /> Add shortcut
         </Button>
@@ -73,11 +74,16 @@ export function ShortcutsScreen({ profile, engine }: ShortcutsScreenProps) {
           <tbody>
             {shortcuts.map((shortcut, index) => {
               const duplicate = duplicates[index] ?? null;
+              const takenBy = unused[index] ?? null;
               return (
                 // Rules have no id; the index is the rule's number on screen.
                 <tr
                   key={index}
-                  className={cn("border-b", duplicate !== null ? "bg-destructive/10" : "")}
+                  className={cn(
+                    "border-b",
+                    duplicate !== null && "bg-destructive/10",
+                    takenBy !== null && "bg-amber-500/10",
+                  )}
                 >
                   <td className="py-2 text-muted-foreground">{index + 1}</td>
                   <td className="py-2">
@@ -87,9 +93,49 @@ export function ShortcutsScreen({ profile, engine }: ShortcutsScreenProps) {
                         Same trigger as rule {duplicate + 1}
                       </Badge>
                     )}
+                    {takenBy !== null && (
+                      <Badge
+                        variant="outline"
+                        className="ml-2 border-amber-500/50 text-amber-700 dark:text-amber-300"
+                        title="The first matching rule wins, and these rules match every key press this one matches."
+                      >
+                        Never used: {rulesLabel(takenBy)} first
+                      </Badge>
+                    )}
                   </td>
                   <td className="py-2">{actionLabel(shortcut.action, layers)}</td>
                   <td className="py-2 text-right">
+                    {/* The order decides which of two matching rules wins. */}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Move rule ${index + 1} up`}
+                      title="Move up"
+                      disabled={index === 0}
+                      onClick={() =>
+                        dispatch({
+                          type: "edit",
+                          edit: { type: "moveShortcut", index, to: index - 1 },
+                        })
+                      }
+                    >
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Move rule ${index + 1} down`}
+                      title="Move down"
+                      disabled={index === shortcuts.length - 1}
+                      onClick={() =>
+                        dispatch({
+                          type: "edit",
+                          edit: { type: "moveShortcut", index, to: index + 1 },
+                        })
+                      }
+                    >
+                      <ArrowDown />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -143,4 +189,11 @@ export function ShortcutsScreen({ profile, engine }: ShortcutsScreenProps) {
       )}
     </section>
   );
+}
+
+/** "rule 1 matches", "rules 1 and 2 match", "rules 1, 2 and 4 match" (0-based indexes in). */
+function rulesLabel(indexes: readonly number[]): string {
+  const numbers = indexes.map((i) => String(i + 1));
+  if (numbers.length === 1) return `rule ${numbers[0]} matches`;
+  return `rules ${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)} match`;
 }

@@ -29,7 +29,7 @@ export function SelectField<T extends string>({
   // `items` tells the trigger which label to show for the chosen value.
   const items = Object.fromEntries(options.map((option) => [option.value, option.label]));
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <Label id={id}>{label}</Label>
       <Select
         items={items}
@@ -94,7 +94,7 @@ export function NumberField({
   const problem = numberProblem(text, min, max, optional);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <Label htmlFor={id}>
         {label} ({unit})
       </Label>
@@ -191,7 +191,7 @@ export function ToggleButtons<M extends string>({
 }) {
   const id = useId();
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <Label id={id}>{label}</Label>
       <ToggleGroup
         multiple

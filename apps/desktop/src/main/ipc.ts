@@ -18,16 +18,34 @@
  * - "config:delete-profile" page → main, invoke: (name) → ConfigOutcome<null>
  * - "config:set-device-remapped" page → main, invoke: (device, probablyMouse, remap)
  *                                  → ConfigOutcome<null>
+ * - "config:update-settings" page → main, invoke: (SettingsChanges) → ConfigOutcome<null>; also
+ *                                  applies the theme
+ * - "system:dark"          page → main, invoke: () → boolean
+ * - "system:dark-changed"  main → every page, send: (dark)
+ * - "system:autostart"     page → main, invoke: () → SystemOutcome<Autostart>
+ * - "system:set-autostart" page → main, invoke: (enabled) → SystemOutcome<Autostart>
+ * - "setup:checks"     page → main, invoke: () → SetupCheck[]
+ * - "setup:fix"        page → main, invoke: (SetupFix) → SystemOutcome<null>
+ * - "setup:first-run"  page → main, invoke: () → boolean
+ * - "setup:mark-done"  page → main, invoke: () → void
+ * - "logs:start"   page → main, invoke: () → void; follows the journal for that page
+ * - "logs:stop"    page → main, invoke: () → void
+ * - "logs:entries" main → page, send: (LogEntry[])
+ * - "logs:error"   main → page, send: (message)
  */
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, ipcMain, type WebContents } from "electron";
 
 import type { CallOutcome } from "../shared/api.ts";
 import { isMethod, type ParamsOf } from "../shared/protocol.ts";
 import type { ConfigFiles } from "./config/config-files.ts";
 import type { EngineConnection } from "./engine/connection.ts";
+import { JournalFollower } from "./logs/journal.ts";
+import type { AutostartControl } from "./system/autostart.ts";
+import type { SetupControl } from "./setup/setup.ts";
+import type { ThemeControl } from "./system/theme.ts";
 
 /** Sends a message to the page in every open window. */
-function sendToAllWindows(channel: string, ...args: unknown[]): void {
+export function sendToAllWindows(channel: string, ...args: unknown[]): void {
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send(channel, ...args);
   }
@@ -54,7 +72,8 @@ export function registerEngineIpc(connection: EngineConnection): void {
   connection.onStateChange((state) => sendToAllWindows("engine:state-changed", state));
 }
 
-export function registerConfigIpc(files: ConfigFiles): void {
+/** `onSettingsSaved`: called after the Settings screen changed settings.json (e.g. the theme). */
+export function registerConfigIpc(files: ConfigFiles, onSettingsSaved: () => void): void {
   // Everything from the page is `unknown` here; ConfigFiles checks it.
   ipcMain.handle("config:active-profile", () => files.activeProfile());
   ipcMain.handle("config:read-profile", (_event, name: unknown) => files.readProfile(name));
@@ -82,4 +101,53 @@ export function registerConfigIpc(files: ConfigFiles): void {
     (_event, device: unknown, probablyMouse: unknown, remap: unknown) =>
       files.setDeviceRemapped(device, probablyMouse, remap),
   );
+  ipcMain.handle("config:update-settings", async (_event, changes: unknown) => {
+    const outcome = await files.updateSettings(changes);
+    if (outcome.ok) onSettingsSaved();
+    return outcome;
+  });
+}
+
+/** Autostart of the engine's unit and the light/dark theme (Settings screen). */
+export function registerSystemIpc(autostart: AutostartControl, theme: ThemeControl): void {
+  ipcMain.handle("system:dark", () => theme.dark);
+  ipcMain.handle("system:autostart", () => autostart.state());
+  ipcMain.handle("system:set-autostart", (_event, enabled: unknown) => autostart.set(enabled));
+}
+
+/**
+ * Follows the journal for each page that asks: one journalctl per page, stopped when the page asks,
+ * starts again, or goes away. `journalctl` is the command to run (a fake one in tests).
+ */
+export function registerLogsIpc(journalctl: string): void {
+  const followers = new Map<WebContents, JournalFollower>();
+  const stop = (page: WebContents) => {
+    followers.get(page)?.stop();
+    followers.delete(page);
+  };
+  ipcMain.handle("logs:start", (event) => {
+    const page = event.sender;
+    if (!followers.has(page)) page.once("destroyed", () => stop(page));
+    stop(page);
+    followers.set(
+      page,
+      new JournalFollower(journalctl, {
+        entries: (entries) => {
+          if (!page.isDestroyed()) page.send("logs:entries", entries);
+        },
+        error: (message) => {
+          if (!page.isDestroyed()) page.send("logs:error", message);
+        },
+      }),
+    );
+  });
+  ipcMain.handle("logs:stop", (event) => stop(event.sender));
+}
+
+/** The setup wizard's checks and fixes. */
+export function registerSetupIpc(setup: SetupControl): void {
+  ipcMain.handle("setup:checks", () => setup.checks());
+  ipcMain.handle("setup:fix", (_event, kind: unknown) => setup.fix(kind));
+  ipcMain.handle("setup:first-run", () => setup.firstRun());
+  ipcMain.handle("setup:mark-done", () => setup.markDone());
 }

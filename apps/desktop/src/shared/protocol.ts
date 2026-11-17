@@ -126,7 +126,10 @@ export type Status = {
   configPending: boolean;
   logLevel: LogLevel;
   devices: {
+    /** Grabbed device nodes; one keyboard can have several (e.g. one for media keys). */
     grabbed: number;
+    /** Physical keyboards with at least one grabbed node. */
+    keyboards: number;
     blocked: { path: string; reason: string }[];
   };
   /** Path of the engine's virtual keyboard; null if it could not be created. */
@@ -156,8 +159,8 @@ export type TesterEventData = {
   device: string;
   key: string;
   pressed: boolean;
-  /** The action the key resolved to; typed when the Tester screen is built (step 12). */
-  action: unknown;
+  /** What the key resolved to, as the engine describes it (e.g. "LeftCtrl+KEY_C"); null on a release. */
+  action: string | null;
   /** Output keys, e.g. `["+KEY_ESC"]` (`+` press, `-` release). */
   outputs: string[];
   layers: string[];
