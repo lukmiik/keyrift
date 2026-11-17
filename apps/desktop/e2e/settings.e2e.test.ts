@@ -3,7 +3,7 @@
  * engine takes up the log level, the GUI its theme and keyboard layout. Autostart goes to a fake
  * systemctl (test/fake-systemctl.mjs), never to the user's keyrift.service.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vite-plus/test";
@@ -103,5 +103,32 @@ describe.skipIf(!uinputAvailable())("Settings", () => {
     await w.getByRole("combobox", { name: "Theme" }).click();
     await w.getByRole("option", { name: "System" }).click();
     await expect.poll(darkClass).toBe(true);
+  });
+
+  it("updates the app through the updater", { timeout: 60_000 }, async () => {
+    const engine = await TestEngine.start();
+    cleanup.push(() => engine.stop());
+    // What a fake updater finds "on GitHub" (src/main/system/updates.ts, fakeUpdater).
+    const github = join(engine.configDir, "..", "fake-github.json");
+    writeFileSync(github, JSON.stringify({ latest: "9.9.9" }));
+    const app = await TestApp.start({
+      socketPath: engine.socketPath,
+      configDir: engine.configDir,
+      env: { KEYRIFT_UPDATE_FAKE: github },
+    });
+    cleanup.push(() => app.close());
+    const w = app.window;
+    await w.getByRole("button", { name: "Settings" }).click();
+    const updates = w.getByRole("region", { name: "Updates" });
+
+    await updates.getByRole("button", { name: "Check for updates" }).click();
+    await updates.getByText("Version 9.9.9 is available.").waitFor();
+    await w.getByRole("button", { name: "Settings (update available)" }).waitFor();
+    await updates.getByRole("button", { name: "Download 9.9.9" }).click();
+    await updates.getByText(/Version 9.9.9 is ready/).waitFor();
+    await updates.getByRole("button", { name: "Restart and install" }).click();
+    await expect
+      .poll(() => (JSON.parse(readFileSync(github, "utf8")) as { installed?: string }).installed)
+      .toBe("9.9.9");
   });
 });

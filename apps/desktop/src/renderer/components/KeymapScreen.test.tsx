@@ -11,6 +11,7 @@ import { FakeEngine } from "../testing/fake-engine.ts";
 import { FakeLogs } from "../testing/fake-logs.ts";
 import { FakeSystem } from "../testing/fake-system.ts";
 import { FakeSetup } from "../testing/fake-setup.ts";
+import { FakeUpdates } from "../testing/fake-updates.ts";
 import { newLayerId } from "./KeymapScreen.tsx";
 
 afterEach(cleanup);
@@ -41,6 +42,7 @@ async function renderKeymap() {
       logs={new FakeLogs()}
       system={new FakeSystem()}
       setup={new FakeSetup()}
+      updates={new FakeUpdates()}
       engine={new FakeEngine()}
       config={new FakeConfig({ daily: PROFILE })}
       versions={VERSIONS}

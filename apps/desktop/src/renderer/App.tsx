@@ -12,6 +12,7 @@ import type {
   LogsApi,
   SetupApi,
   SystemApi,
+  UpdatesApi,
 } from "../shared/api.ts";
 import { DevicesScreen } from "./components/DevicesScreen.tsx";
 import { KeymapScreen } from "./components/KeymapScreen.tsx";
@@ -29,6 +30,7 @@ import { type ProfileEditor, useProfileEditor } from "./config/useProfileEditor.
 import { useProfiles } from "./config/useProfiles.ts";
 import { useEngineStatus } from "./engine/useEngineStatus.ts";
 import { useTheme } from "./useTheme.ts";
+import { useUpdates } from "./useUpdates.ts";
 
 type AppProps = {
   engine: EngineApi;
@@ -36,12 +38,14 @@ type AppProps = {
   logs: LogsApi;
   system: SystemApi;
   setup: SetupApi;
+  updates: UpdatesApi;
   // The versions object has no type name of its own, so take it from KeyriftApi.
   versions: KeyriftApi["versions"];
 };
 
-export function App({ engine, config, logs, system, setup, versions }: AppProps) {
+export function App({ engine, config, logs, system, setup, updates, versions }: AppProps) {
   useTheme(system);
+  const update = useUpdates(updates);
   // Which screen is open. Lives here, above both the sidebar and the screen, because both need it.
   const [screen, setScreen] = useState<Screen>("keymap");
   // The open profile and its undo history. Here, not in KeymapScreen, so they survive switching
@@ -77,6 +81,12 @@ export function App({ engine, config, logs, system, setup, versions }: AppProps)
       <Sidebar
         current={screen}
         onSelect={setScreen}
+        // A dot on Settings while an update waits there.
+        notices={
+          update !== null && ["available", "ready"].includes(update.state.status)
+            ? { settings: "update available" }
+            : {}
+        }
         footer={
           <ProfileMenu
             config={config}
@@ -122,6 +132,8 @@ export function App({ engine, config, logs, system, setup, versions }: AppProps)
                 system={system}
                 connection={engineStatus.connection}
                 versions={versions}
+                updates={updates}
+                update={update}
                 onRunSetup={() => setShowSetup(true)}
               />
             )}

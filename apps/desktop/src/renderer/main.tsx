@@ -21,6 +21,7 @@ createRoot(root).render(
       logs={window.keyrift.logs}
       system={window.keyrift.system}
       setup={window.keyrift.setup}
+      updates={window.keyrift.updates}
       versions={window.keyrift.versions}
     />
   </StrictMode>,

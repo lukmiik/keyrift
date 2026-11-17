@@ -10,6 +10,7 @@ import { FakeEngine } from "../testing/fake-engine.ts";
 import { FakeLogs } from "../testing/fake-logs.ts";
 import { FakeSystem } from "../testing/fake-system.ts";
 import { FakeSetup } from "../testing/fake-setup.ts";
+import { FakeUpdates } from "../testing/fake-updates.ts";
 import { logText, logTime } from "./LogsScreen.tsx";
 
 afterEach(cleanup);
@@ -27,6 +28,7 @@ async function openLogs() {
       logs={logs}
       system={new FakeSystem()}
       setup={new FakeSetup()}
+      updates={new FakeUpdates()}
       versions={VERSIONS}
     />,
   );

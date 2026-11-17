@@ -9,6 +9,7 @@ import { FakeEngine } from "../testing/fake-engine.ts";
 import { FakeLogs } from "../testing/fake-logs.ts";
 import { FakeSystem } from "../testing/fake-system.ts";
 import { FakeSetup } from "../testing/fake-setup.ts";
+import { FakeUpdates } from "../testing/fake-updates.ts";
 import { layoutLabel } from "./SettingsScreen.tsx";
 
 afterEach(cleanup);
@@ -16,7 +17,7 @@ afterEach(cleanup);
 const VERSIONS = { electron: "45.3.2", chrome: "1", node: "1", v8: "1" };
 
 /** Opens the Settings screen of the app, with fakes. */
-async function openSettings(config = new FakeConfig()) {
+async function openSettings(config = new FakeConfig(), updates = new FakeUpdates()) {
   const engine = new FakeEngine();
   const system = new FakeSystem();
   render(
@@ -26,13 +27,14 @@ async function openSettings(config = new FakeConfig()) {
       logs={new FakeLogs()}
       system={system}
       setup={new FakeSetup()}
+      updates={updates}
       versions={VERSIONS}
     />,
   );
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: /^Settings/ }));
   await screen.findByRole("region", { name: "General" });
-  return { engine, config, system, user };
+  return { engine, config, system, updates, user };
 }
 
 /** Picks `option` in the dropdown named `label`. */
@@ -144,5 +146,51 @@ describe("SettingsScreen", () => {
   it("names the layouts", () => {
     expect(layoutLabel("iso-full")).toBe("ISO, full size");
     expect(layoutLabel("ansi-75")).toBe("ANSI, 75 %");
+  });
+
+  it("finds, downloads and installs an update", async () => {
+    const updates = new FakeUpdates();
+    updates.latest = "0.2.0";
+    const { user } = await openSettings(undefined, updates);
+    const region = screen.getByRole("region", { name: "Updates" });
+    expect(within(region).getByText("Keyrift 0.1.0")).toBeDefined();
+
+    await user.click(within(region).getByRole("button", { name: "Check for updates" }));
+    expect(within(region).getByText("Version 0.2.0 is available.")).toBeDefined();
+    // The sidebar points at Settings while an update waits there.
+    expect(screen.getByRole("button", { name: "Settings (update available)" })).toBeDefined();
+
+    await user.click(within(region).getByRole("button", { name: "Download 0.2.0" }));
+    expect(within(region).getByText(/Version 0.2.0 is ready/)).toBeDefined();
+    await user.click(within(region).getByRole("button", { name: "Restart and install" }));
+    expect(updates.installed).toBe(true);
+  });
+
+  it("shows progress while downloading and says when it is up to date", async () => {
+    const updates = new FakeUpdates();
+    const { user } = await openSettings(undefined, updates);
+    const region = screen.getByRole("region", { name: "Updates" });
+
+    await user.click(within(region).getByRole("button", { name: "Check for updates" }));
+    expect(within(region).getByText("Keyrift is up to date.")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeDefined();
+
+    act(() => updates.set({ status: "downloading", version: "0.2.0", percent: 40 }));
+    expect(within(region).getByText("Downloading version 0.2.0… 40%")).toBeDefined();
+    expect(
+      within(region).getByRole<HTMLButtonElement>("button", { name: "Download 0.2.0" }).disabled,
+    ).toBe(true);
+  });
+
+  it("says why a build can't update itself", async () => {
+    const updates = new FakeUpdates();
+    updates.state = {
+      status: "unavailable",
+      reason: "Development builds don't update themselves.",
+    };
+    await openSettings(undefined, updates);
+    const region = screen.getByRole("region", { name: "Updates" });
+    expect(within(region).getByText("Development builds don't update themselves.")).toBeDefined();
+    expect(within(region).queryByRole("button")).toBeNull();
   });
 });

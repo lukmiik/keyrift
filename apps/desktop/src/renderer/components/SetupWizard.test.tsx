@@ -8,6 +8,7 @@ import { FakeConfig } from "../testing/fake-config.ts";
 import { FakeEngine } from "../testing/fake-engine.ts";
 import { FakeLogs } from "../testing/fake-logs.ts";
 import { FakeSetup, okCheck } from "../testing/fake-setup.ts";
+import { FakeUpdates } from "../testing/fake-updates.ts";
 import { FakeSystem } from "../testing/fake-system.ts";
 
 afterEach(cleanup);
@@ -22,6 +23,7 @@ function renderApp(setup: FakeSetup, engine = new FakeEngine()) {
       logs={new FakeLogs()}
       system={new FakeSystem()}
       setup={setup}
+      updates={new FakeUpdates()}
       versions={VERSIONS}
     />,
   );

@@ -10,6 +10,7 @@ import { FakeEngine } from "../../testing/fake-engine.ts";
 import { FakeLogs } from "../../testing/fake-logs.ts";
 import { FakeSystem } from "../../testing/fake-system.ts";
 import { FakeSetup } from "../../testing/fake-setup.ts";
+import { FakeUpdates } from "../../testing/fake-updates.ts";
 
 afterEach(cleanup);
 
@@ -29,6 +30,7 @@ async function openShortcuts(shortcuts: ShortcutConfig[]) {
       logs={new FakeLogs()}
       system={new FakeSystem()}
       setup={new FakeSetup()}
+      updates={new FakeUpdates()}
       engine={engine}
       config={new FakeConfig({ daily: profile })}
       versions={VERSIONS}

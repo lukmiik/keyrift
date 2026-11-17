@@ -202,6 +202,36 @@ export type SetupApi = {
   markDone(): Promise<void>;
 };
 
+/** Where updating the app stands (Settings → Updates). */
+export type UpdateState =
+  /** This build can't update itself, e.g. a development build. */
+  | { status: "unavailable"; reason: string }
+  /** Not checked yet. */
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "up-to-date" }
+  | { status: "available"; version: string }
+  | { status: "downloading"; version: string; percent: number }
+  /** Downloaded: installing restarts the app. */
+  | { status: "ready"; version: string }
+  | { status: "error"; message: string };
+
+/** The running app's version and where updating stands. */
+export type UpdateInfo = { current: string; state: UpdateState };
+
+/** Updating the app from GitHub Releases (main runs electron-updater). */
+export type UpdatesApi = {
+  info(): Promise<UpdateInfo>;
+  /** Looks for a newer release. */
+  check(): Promise<void>;
+  /** Downloads the newer release that `check` found. */
+  download(): Promise<void>;
+  /** Installs the download (one password prompt for .deb and pacman) and restarts Keyrift. */
+  install(): Promise<void>;
+  /** Calls `listener` when the state changes. Returns a function that stops it. */
+  onChange(listener: (info: UpdateInfo) => void): () => void;
+};
+
 export type KeyriftApi = {
   /** Versions of the parts Electron is made of, shown on the placeholder page. */
   versions: { electron: string; chrome: string; node: string; v8: string };
@@ -210,4 +240,5 @@ export type KeyriftApi = {
   logs: LogsApi;
   system: SystemApi;
   setup: SetupApi;
+  updates: UpdatesApi;
 };

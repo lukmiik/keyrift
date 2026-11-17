@@ -17,6 +17,8 @@ import type {
   SettingsChanges,
   SystemApi,
   Theme,
+  UpdateInfo,
+  UpdatesApi,
 } from "../../shared/api.ts";
 import type { LogLevel } from "../../shared/protocol.ts";
 import { useRecorder } from "../engine/useRecorder.ts";
@@ -36,6 +38,9 @@ type SettingsScreenProps = {
   /** The engine connection, for its version under About. */
   connection: ConnectionState | null;
   versions: KeyriftApi["versions"];
+  updates: UpdatesApi;
+  /** The app's version and where an update stands; null until main answered. */
+  update: UpdateInfo | null;
   /** Opens the setup wizard. */
   onRunSetup: () => void;
 };
@@ -89,6 +94,8 @@ export function SettingsScreen({
   system,
   connection,
   versions,
+  updates,
+  update,
   onRunSetup,
 }: SettingsScreenProps) {
   // undefined: not read yet; null: no settings.json (the engine's defaults apply).
@@ -253,6 +260,10 @@ export function SettingsScreen({
             </Button>
           )}
         </Row>
+      </Group>
+
+      <Group title="Updates">
+        <UpdateRow updates={updates} update={update} />
       </Group>
 
       <Group title="About">
@@ -528,4 +539,62 @@ export function layoutLabel(id: LayoutId): string {
     "60": "60 %",
   };
   return `${standard.toUpperCase()}, ${sizes[size] ?? size}`;
+}
+
+/**
+ * Updating Keyrift: one row whose text and button follow the update's state, from "Check for
+ * updates" through downloading to "Restart and install".
+ */
+function UpdateRow({ updates, update }: { updates: UpdatesApi; update: UpdateInfo | null }) {
+  if (update === null) return null;
+  const { current, state } = update;
+  let help: string;
+  let action: { label: string; run: () => Promise<void> } | null = null;
+  let busy = false;
+  switch (state.status) {
+    case "unavailable":
+      help = state.reason;
+      break;
+    case "idle":
+      help = "Look for a newer version on GitHub.";
+      action = { label: "Check for updates", run: () => updates.check() };
+      break;
+    case "checking":
+      help = "Looking for a newer version…";
+      action = { label: "Check for updates", run: () => updates.check() };
+      busy = true;
+      break;
+    case "up-to-date":
+      help = "Keyrift is up to date.";
+      action = { label: "Check again", run: () => updates.check() };
+      break;
+    case "available":
+      help = `Version ${state.version} is available.`;
+      action = { label: `Download ${state.version}`, run: () => updates.download() };
+      break;
+    case "downloading":
+      help = `Downloading version ${state.version}… ${state.percent}%`;
+      action = { label: `Download ${state.version}`, run: () => updates.download() };
+      busy = true;
+      break;
+    case "ready":
+      help = `Version ${state.version} is ready. Installing may ask for your password, then Keyrift restarts; your keymaps stay.`;
+      action = { label: "Restart and install", run: () => updates.install() };
+      break;
+    case "error":
+      help = `Couldn't update: ${state.message}`;
+      action = { label: "Try again", run: () => updates.check() };
+      break;
+  }
+  return (
+    <Row label={`Keyrift ${current}`} help={help}>
+      {() =>
+        action !== null && (
+          <Button variant="outline" disabled={busy} onClick={() => void action.run()}>
+            {action.label}
+          </Button>
+        )
+      }
+    </Row>
+  );
 }

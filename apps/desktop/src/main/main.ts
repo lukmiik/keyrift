@@ -7,6 +7,8 @@
 import { join } from "node:path";
 
 import { app, BrowserWindow, Menu } from "electron";
+// electron-updater is CommonJS: its default export holds `autoUpdater`.
+import electronUpdater from "electron-updater";
 
 import type { Theme } from "../shared/api.ts";
 import { ConfigFiles, defaultConfigDir } from "./config/config-files.ts";
@@ -17,6 +19,7 @@ import {
   registerLogsIpc,
   registerSetupIpc,
   registerSystemIpc,
+  registerUpdatesIpc,
   sendToAllWindows,
 } from "./ipc.ts";
 import { runServiceFix, runSystemFix } from "./setup/fixes.ts";
@@ -25,6 +28,7 @@ import { SetupControl } from "./setup/setup.ts";
 import { AutostartControl } from "./system/autostart.ts";
 import { appImageEnginePath, installEngine, restartEngineUsing } from "./system/engine-binary.ts";
 import { ThemeControl } from "./system/theme.ts";
+import { fakeUpdater, UpdateControl } from "./system/updates.ts";
 import { KeyriftTray } from "./tray/tray.ts";
 
 // KEYRIFT_SOCKET points the GUI at another engine, e.g. a private test engine.
@@ -98,6 +102,33 @@ function createSetup(autostart: AutostartControl, cli: string): SetupControl {
     (kind) => (kind === "system" ? runSystemFix("pkexec", probe.username) : runServiceFix(cli)),
     app.getPath("userData"),
   );
+}
+
+/**
+ * Updating the app (Settings → Updates). KEYRIFT_UPDATE_FAKE: a JSON file saying what is "on
+ * GitHub", for GUI tests, so they neither download nor install anything.
+ */
+function createUpdates(): UpdateControl {
+  const current = app.getVersion();
+  const changed = (info: ReturnType<UpdateControl["info"]>) =>
+    sendToAllWindows("updates:changed", info);
+  const fakeFile = process.env.KEYRIFT_UPDATE_FAKE;
+  if (fakeFile !== undefined) {
+    return new UpdateControl(current, fakeUpdater(fakeFile, current), "", changed);
+  }
+  if (!app.isPackaged) {
+    return new UpdateControl(
+      current,
+      null,
+      "Development builds don't update themselves: pull and build again.",
+      changed,
+    );
+  }
+  const { autoUpdater } = electronUpdater;
+  // Only when the user asks (Settings), never on quit behind their back.
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  return new UpdateControl(current, autoUpdater, "", changed);
 }
 
 /** The main window; null before it opens. Hidden, not closed, when the user closes it. */
@@ -202,6 +233,11 @@ void app.whenReady().then(async () => {
   const autostart = new AutostartControl(process.env.KEYRIFT_SYSTEMCTL ?? "systemctl");
   registerSystemIpc(autostart, theme);
   registerSetupIpc(createSetup(autostart, await engineCli()));
+  const updates = createUpdates();
+  registerUpdatesIpc(updates);
+  // A packaged app looks for an update once, shortly after starting (not in GUI tests, whose app
+  // isn't packaged); Settings then offers it, and its sidebar item shows a dot.
+  if (app.isPackaged) setTimeout(() => void updates.check(), 10_000);
   connection.start();
   // The theme before the window opens, so it doesn't open in the wrong one.
   await theme.start(await themeSetting());

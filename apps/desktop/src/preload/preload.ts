@@ -6,7 +6,7 @@
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
-import type { ConnectionState, KeyriftApi, LogEntry } from "../shared/api.ts";
+import type { ConnectionState, KeyriftApi, LogEntry, UpdateInfo } from "../shared/api.ts";
 import type { EngineEvent } from "../shared/protocol.ts";
 
 /**
@@ -72,6 +72,13 @@ const api: KeyriftApi = {
     stop: () => ipcRenderer.invoke("logs:stop"),
     onEntries: (listener: (entries: LogEntry[]) => void) => listen("logs:entries", listener),
     onError: (listener: (message: string) => void) => listen("logs:error", listener),
+  },
+  updates: {
+    info: () => ipcRenderer.invoke("updates:info"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    download: () => ipcRenderer.invoke("updates:download"),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onChange: (listener: (info: UpdateInfo) => void) => listen("updates:changed", listener),
   },
 };
 

@@ -34,6 +34,11 @@
  * - "logs:stop"    page → main, invoke: () → void
  * - "logs:entries" main → page, send: (LogEntry[])
  * - "logs:error"   main → page, send: (message)
+ * - "updates:info"     page → main, invoke: () → UpdateInfo
+ * - "updates:check"    page → main, invoke: () → void
+ * - "updates:download" page → main, invoke: () → void
+ * - "updates:install"  page → main, invoke: () → void; installs and restarts the app
+ * - "updates:changed"  main → every page, send: (UpdateInfo)
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -48,6 +53,7 @@ import { JournalFollower } from "./logs/journal.ts";
 import type { AutostartControl } from "./system/autostart.ts";
 import type { SetupControl } from "./setup/setup.ts";
 import type { ThemeControl } from "./system/theme.ts";
+import type { UpdateControl } from "./system/updates.ts";
 
 /** Sends a message to the page in every open window. */
 export function sendToAllWindows(channel: string, ...args: unknown[]): void {
@@ -185,4 +191,12 @@ export function registerSetupIpc(setup: SetupControl): void {
   ipcMain.handle("setup:fix", (_event, kind: unknown) => setup.fix(kind));
   ipcMain.handle("setup:first-run", () => setup.firstRun());
   ipcMain.handle("setup:mark-done", () => setup.markDone());
+}
+
+/** Updating the app (Settings → Updates); main sends "updates:changed" itself (main.ts). */
+export function registerUpdatesIpc(updates: UpdateControl): void {
+  ipcMain.handle("updates:info", () => updates.info());
+  ipcMain.handle("updates:check", () => updates.check());
+  ipcMain.handle("updates:download", () => updates.download());
+  ipcMain.handle("updates:install", () => updates.install());
 }

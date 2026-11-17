@@ -36,9 +36,11 @@ type SidebarProps = {
   onSelect: (screen: Screen) => void;
   /** Shown at the bottom of the sidebar: the profile selector. */
   footer?: ReactNode;
+  /** Screens with something waiting there get a dot; the text is read out after their name. */
+  notices?: Partial<Record<Screen, string>>;
 };
 
-export function Sidebar({ current, onSelect, footer }: SidebarProps) {
+export function Sidebar({ current, onSelect, footer, notices = {} }: SidebarProps) {
   return (
     // Full window height, with the app's name on top; the header sits only over the page.
     <aside className="flex w-48 shrink-0 flex-col border-r bg-sidebar">
@@ -61,6 +63,12 @@ export function Sidebar({ current, onSelect, footer }: SidebarProps) {
           >
             <Icon data-icon="inline-start" />
             {label}
+            {notices[id] !== undefined && (
+              <>
+                <span aria-hidden className="ml-auto size-2 rounded-full bg-primary" />
+                <span className="sr-only"> ({notices[id]})</span>
+              </>
+            )}
           </Button>
         ))}
       </nav>
