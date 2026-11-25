@@ -943,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "keyrift"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "evdev",
@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "keyrift-config"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "jsonschema",
  "keyrift-core",
@@ -970,11 +970,11 @@ dependencies = [
 
 [[package]]
 name = "keyrift-core"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "keyrift-engine"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "evdev",
  "futures-util",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "keyrift-test-keyboard"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "evdev",
  "keyrift-core",
