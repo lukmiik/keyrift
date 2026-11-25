@@ -379,6 +379,10 @@ pub enum ActionConfig {
         /// the key is a tap at once. Omit to turn it off.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         require_prior_idle_ms: Option<u32>,
+        /// Opposite-hand rule: a key on the same hand makes this a tap; only keys on the other
+        /// hand (or on neither, like Space) can make it a hold.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        opposite_hand: bool,
     },
     /// Tap a sequence of keys.
     Macro { steps: Vec<MacroStepConfig> },

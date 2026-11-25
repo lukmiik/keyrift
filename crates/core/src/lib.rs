@@ -6,12 +6,14 @@
 #![forbid(unsafe_code)]
 
 mod engine;
+mod hands;
 mod keymap;
 mod keys;
 mod keys_generated;
 mod output;
 
 pub use engine::{DeviceId, Engine, KeyEvent, Output};
+pub use hands::Hand;
 pub use keymap::{
     Action, Keymap, Layer, LayerMode, MacroStep, Shortcut, Strategy, TapHold, Trigger,
 };

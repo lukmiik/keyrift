@@ -52,6 +52,10 @@
           "description": "Different actions for tap and hold.",
           "properties": {
             "hold": { "$ref": "#/$defs/ActionConfig" },
+            "oppositeHand": {
+              "description": "Opposite-hand rule: a key on the same hand makes this a tap; only keys on the other\nhand (or on neither, like Space) can make it a hold.",
+              "type": "boolean"
+            },
             "requirePriorIdleMs": {
               "description": "Typing streak: pressed within this many ms after the previous typing key press,\nthe key is a tap at once. Omit to turn it off.",
               "format": "uint32",

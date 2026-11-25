@@ -4,8 +4,8 @@
 use std::sync::Arc;
 
 use keyrift_core::{
-    Action, Engine, Key, KeyEvent, Keymap, Layer, LayerMode, MacroStep, ModSet, Modifier, Output,
-    Shortcut, Strategy, TapHold, Trigger, ms,
+    Action, Engine, Hand, Key, KeyEvent, Keymap, Layer, LayerMode, MacroStep, ModSet, Modifier,
+    Output, Shortcut, Strategy, TapHold, Trigger, ms,
 };
 
 fn k(name: &str) -> Key {
@@ -530,6 +530,7 @@ fn caps_tap_hold(strategy: Strategy) -> Keymap {
                 timeout: ms(200),
                 strategy,
                 prior_idle: 0,
+                opposite_hand: false,
             })),
         )],
         shortcuts: vec![],
@@ -655,6 +656,7 @@ fn layer_tap_hold_activates_layer_for_buffered_keys() {
                     timeout: ms(200),
                     strategy: Strategy::PermissiveHold,
                     prior_idle: 0,
+                    opposite_hand: false,
                 })),
             ),
             Layer::new("nav").with(k("KEY_J"), Action::key(k("KEY_DOWN"))),
@@ -687,6 +689,7 @@ fn two_pending_tap_holds_resolve_in_press_order() {
             timeout: ms(200),
             strategy: Strategy::PermissiveHold,
             prior_idle: 0,
+            opposite_hand: false,
         }))
     };
     let km = Keymap {
@@ -954,6 +957,7 @@ fn streak_keymap() -> Keymap {
             timeout: ms(200),
             strategy: Strategy::TimeoutOnly,
             prior_idle: ms(prior_idle),
+            opposite_hand: false,
         }))
     };
     Keymap {
@@ -1038,4 +1042,154 @@ fn release_all_forgets_the_streak() {
     s.e.release_all(&mut out);
     s.at(50).down("KEY_A");
     assert_eq!(s.take(), exp(&["+KEY_X", "-KEY_X"]));
+}
+
+/// Home row mods with the opposite-hand rule: `a` Super, `s` Alt, `d` Ctrl, `f` Shift (left) and
+/// `j` Shift (right), all with `strategy`.
+fn opposite_hand_keymap(strategy: Strategy) -> Keymap {
+    let th = |tap: &str, hold: Modifier| {
+        Action::TapHold(Box::new(TapHold {
+            tap: Action::key(k(tap)),
+            hold: Action::Key {
+                key: None,
+                mods: mods(&[hold]),
+                release_held: ModSet::EMPTY,
+            },
+            timeout: ms(200),
+            strategy,
+            prior_idle: 0,
+            opposite_hand: true,
+        }))
+    };
+    let mut base = Layer::new("base");
+    for (key, m) in [
+        ("KEY_A", Modifier::LeftSuper),
+        ("KEY_S", Modifier::LeftAlt),
+        ("KEY_D", Modifier::LeftCtrl),
+        ("KEY_F", Modifier::LeftShift),
+        ("KEY_J", Modifier::RightShift),
+    ] {
+        base = base.with(k(key), th(key, m));
+    }
+    Keymap {
+        layers: vec![base],
+        shortcuts: vec![],
+    }
+}
+
+#[test]
+fn hand_map_splits_the_keyboard() {
+    for (name, hand) in [
+        ("KEY_ESC", Some(Hand::Left)),
+        ("KEY_5", Some(Hand::Left)),
+        ("KEY_T", Some(Hand::Left)),
+        ("KEY_A", Some(Hand::Left)),
+        ("KEY_B", Some(Hand::Left)),
+        ("KEY_6", Some(Hand::Right)),
+        ("KEY_Y", Some(Hand::Right)),
+        ("KEY_SEMICOLON", Some(Hand::Right)),
+        ("KEY_N", Some(Hand::Right)),
+        ("KEY_ENTER", Some(Hand::Right)),
+        ("KEY_SPACE", None),
+        ("KEY_LEFTALT", None),
+        ("KEY_UP", None),
+    ] {
+        assert_eq!(k(name).hand(), hand, "{name}");
+    }
+}
+
+#[test]
+fn same_hand_key_press_makes_a_tap_at_once() {
+    // Even hold-on-other-press taps when the other key is on the same hand.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::HoldOnOtherPress));
+    s.at(0).down("KEY_S").at(40).down("KEY_W");
+    assert_eq!(s.take(), exp(&["+KEY_S", "-KEY_S", "+KEY_W"]));
+    s.at(300).up("KEY_W").up("KEY_S");
+    assert_eq!(s.take(), exp(&["-KEY_W"]));
+}
+
+#[test]
+fn same_hand_home_row_roll_is_letters() {
+    // s↓ a↓ s↑ a↑: rolling two left-hand home row mods.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::PermissiveHold));
+    s.at(0)
+        .down("KEY_S")
+        .at(40)
+        .down("KEY_A")
+        .at(90)
+        .up("KEY_S")
+        .at(130)
+        .up("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_S", "-KEY_S", "+KEY_A", "-KEY_A"]));
+}
+
+#[test]
+fn same_hand_nested_tap_is_letters() {
+    // s↓ a↓ a↑ s↑: permissive-hold alone would make this Alt+a.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::PermissiveHold));
+    s.at(0)
+        .down("KEY_S")
+        .at(40)
+        .down("KEY_A")
+        .at(80)
+        .up("KEY_A")
+        .at(120)
+        .up("KEY_S");
+    assert_eq!(s.take(), exp(&["+KEY_S", "-KEY_S", "+KEY_A", "-KEY_A"]));
+}
+
+#[test]
+fn opposite_hand_key_follows_the_strategy() {
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::PermissiveHold));
+    s.at(0)
+        .down("KEY_S")
+        .at(40)
+        .down("KEY_K")
+        .at(80)
+        .up("KEY_K");
+    assert_eq!(s.take(), exp(&["+KEY_LEFTALT", "+KEY_K", "-KEY_K"]));
+    s.at(120).up("KEY_S");
+    assert_eq!(s.take(), exp(&["-KEY_LEFTALT"]));
+}
+
+#[test]
+fn neutral_key_follows_the_strategy() {
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::HoldOnOtherPress));
+    s.at(0).down("KEY_D").at(40).down("KEY_SPACE");
+    assert_eq!(s.take(), exp(&["+KEY_LEFTCTRL", "+KEY_SPACE"]));
+}
+
+#[test]
+fn same_hand_mods_stack_for_an_opposite_hand_key() {
+    // d↓ f↓ then j tapped on the other hand: Ctrl+Shift+j.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::PermissiveHold));
+    s.at(0)
+        .down("KEY_D")
+        .at(30)
+        .down("KEY_F")
+        .at(60)
+        .down("KEY_K")
+        .at(90)
+        .up("KEY_K");
+    assert_eq!(
+        s.take(),
+        exp(&["+KEY_LEFTCTRL", "+KEY_LEFTSHIFT", "+KEY_K", "-KEY_K"])
+    );
+    s.at(120).up("KEY_F").up("KEY_D");
+    assert_eq!(s.take(), exp(&["-KEY_LEFTSHIFT", "-KEY_LEFTCTRL"]));
+}
+
+#[test]
+fn same_hand_key_after_timeout_keeps_the_hold() {
+    // The rule only applies before the timeout: Super held, then a left-hand key.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0).down("KEY_A").at(250).tap("KEY_E");
+    assert_eq!(s.take(), exp(&["+KEY_LEFTMETA", "+KEY_E", "-KEY_E"]));
+}
+
+#[test]
+fn opposite_hand_rule_is_off_by_default() {
+    let mut s = Sim::new(caps_tap_hold(Strategy::HoldOnOtherPress));
+    s.at(0).down("KEY_CAPSLOCK").at(40).down("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_LEFTCTRL", "+KEY_A"]));
 }

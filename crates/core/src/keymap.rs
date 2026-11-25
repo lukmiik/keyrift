@@ -140,6 +140,9 @@ pub struct TapHold {
     /// Typing-streak window: pressed within this long after the previous typing key press,
     /// the key is a tap at once and is never pending (spec §5.4). `0` turns it off.
     pub prior_idle: Micros,
+    /// Opposite-hand rule: while pending, a key on the same hand makes this a tap; only keys on
+    /// the other hand (or on neither) can make it a hold (spec §5.4).
+    pub opposite_hand: bool,
 }
 
 /// How a pending tap-hold key is resolved (spec §5.4).

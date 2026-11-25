@@ -50,7 +50,8 @@ Keyrift is meant for you.
 - **Tap-hold.** One key, two jobs: tap for one action, hold for another (for example tap for Escape,
   hold for Ctrl). The timeout and the decision strategy can be set globally or per key. For home row
   mods, a per-key typing streak (`requirePriorIdleMs` in the profile file) makes the key type its
-  letter at once while you are typing, so letters don't lag.
+  letter at once while you are typing, so letters don't lag, and an opposite-hand rule
+  (`oppositeHand`) types letters for same-hand rolls such as `s` then `a`.
 - **Shortcuts.** Turn one key combination into another, such as Super+C into Ctrl+Shift+C, or switch
   one off entirely.
 - **Macros.** A sequence of keys and pauses, typed with one press. Steps can be picked or recorded.

@@ -335,3 +335,21 @@ fn require_prior_idle_compiles_per_key() {
     assert_eq!(prior_idle("KEY_A"), keyrift_core::ms(150));
     assert_eq!(prior_idle("KEY_F"), 0);
 }
+
+#[test]
+fn opposite_hand_parses_compiles_and_is_omitted_when_off() {
+    let text = r#"{"layers":[{"id":"base","keys":{
+        "KEY_S":{"type":"tapHold","tap":{"type":"key","key":"KEY_S"},"hold":{"type":"mods","mods":["LeftAlt"]},"oppositeHand":true},
+        "KEY_F":{"type":"tapHold","tap":{"type":"key","key":"KEY_F"},"hold":{"type":"mods","mods":["LeftShift"]}}
+    }}]}"#;
+    let p: Profile = parse_json("p.json", text).unwrap();
+    let km = compile(&p, &Settings::default().tap_hold);
+    let opposite = |name| match km.layers[0].keys.get(&Key::from_name(name).unwrap()) {
+        Some(keyrift_core::Action::TapHold(th)) => th.opposite_hand,
+        other => panic!("not a tap-hold: {other:?}"),
+    };
+    assert!(opposite("KEY_S"));
+    assert!(!opposite("KEY_F"));
+    let json = serde_json::to_string(&p).unwrap();
+    assert_eq!(json.matches("oppositeHand").count(), 1, "{json}");
+}

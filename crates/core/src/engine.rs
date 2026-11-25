@@ -485,7 +485,8 @@ impl Engine {
     /// Resolve pending tap-hold keys as far as the buffered events and the clock allow.
     fn evaluate(&mut self, now: Micros, out: &mut Vec<Output>) {
         while let Some(p) = &self.pending {
-            let Some(hold) = decide(p, &self.buffer, now) else {
+            let is_tap_hold = |key| matches!(self.resolve(key), Action::TapHold(_));
+            let Some(hold) = decide(p, &self.buffer, now, is_tap_hold) else {
                 break;
             };
             let Some(p) = self.pending.take() else { break };
@@ -547,8 +548,19 @@ impl Engine {
 }
 
 /// Decide a pending tap-hold: `Some(true)` = hold, `Some(false)` = tap, `None` = undecided.
-fn decide(p: &Pending, buffer: &VecDeque<KeyEvent>, now: Micros) -> Option<bool> {
+/// `is_tap_hold` tells whether a key would itself be a tap-hold key right now.
+fn decide(
+    p: &Pending,
+    buffer: &VecDeque<KeyEvent>,
+    now: Micros,
+    is_tap_hold: impl Fn(Key) -> bool,
+) -> Option<bool> {
     let deadline = p.deadline();
+    let own_hand = if p.th.opposite_hand {
+        p.key.hand()
+    } else {
+        None
+    };
     let mut pressed_after: Vec<(DeviceId, Key)> = Vec::new();
     for ev in buffer {
         if ev.time >= deadline {
@@ -556,6 +568,19 @@ fn decide(p: &Pending, buffer: &VecDeque<KeyEvent>, now: Micros) -> Option<bool>
         }
         if ev.device == p.device && ev.key == p.key {
             if !ev.pressed {
+                return Some(false);
+            }
+            continue;
+        }
+        // Opposite-hand rule: a same-hand key means a roll, so a tap. A same-hand tap-hold key may
+        // be a second modifier held on purpose, so its press waits; releasing it means a roll.
+        if own_hand.is_some() && ev.key.hand() == own_hand {
+            if ev.pressed {
+                if !is_tap_hold(ev.key) {
+                    return Some(false);
+                }
+                pressed_after.push((ev.device, ev.key));
+            } else if pressed_after.contains(&(ev.device, ev.key)) {
                 return Some(false);
             }
             continue;

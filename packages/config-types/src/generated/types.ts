@@ -29,6 +29,11 @@ export type ActionConfig =
   | {
       hold: ActionConfig;
       /**
+       * Opposite-hand rule: a key on the same hand makes this a tap; only keys on the other
+       * hand (or on neither, like Space) can make it a hold.
+       */
+      oppositeHand?: boolean;
+      /**
        * Typing streak: pressed within this many ms after the previous typing key press,
        * the key is a tap at once. Omit to turn it off.
        */
