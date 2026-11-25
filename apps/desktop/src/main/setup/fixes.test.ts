@@ -14,7 +14,8 @@ describe("systemFixScript", () => {
       "install -m 644 '/tmp/keyrift-setup-x/keyrift.conf' /etc/modules-load.d/keyrift.conf",
       "modprobe uinput || true",
       "udevadm control --reload",
-      "udevadm trigger --subsystem-match=input --subsystem-match=misc",
+      "udevadm trigger --subsystem-match=misc --sysname-match=uinput",
+      "udevadm trigger --subsystem-match=input --property-match=ID_INPUT_KEYBOARD=1",
     ]);
   });
 

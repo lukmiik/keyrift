@@ -75,10 +75,17 @@ ln -sf "$RESOURCES/keyrift" /usr/bin/keyrift
 # asks for that.
 groupadd -f input || true
 groupadd -f uinput || true
-install -m 644 "$RESOURCES/packaging/70-keyrift.rules" /etc/udev/rules.d/70-keyrift.rules
+# Re-applying the rule makes Xorg unplug and replug the devices it touches, which resets
+# per-device settings (mouse speed set with xinput, …). So only when the rule changed (first
+# install, or a release that changes it), and only for keyboards and uinput, never mice.
+RULE=/etc/udev/rules.d/70-keyrift.rules
+RULE_CHANGED=1
+cmp -s "$RESOURCES/packaging/70-keyrift.rules" "$RULE" && RULE_CHANGED=0
+install -m 644 "$RESOURCES/packaging/70-keyrift.rules" "$RULE"
 install -m 644 "$RESOURCES/packaging/keyrift.conf" /etc/modules-load.d/keyrift.conf
 modprobe uinput || true
-if hash udevadm 2>/dev/null; then
+if [ "$RULE_CHANGED" = 1 ] && hash udevadm 2>/dev/null; then
   udevadm control --reload || true
-  udevadm trigger --subsystem-match=input --subsystem-match=misc || true
+  udevadm trigger --subsystem-match=misc --sysname-match=uinput || true
+  udevadm trigger --subsystem-match=input --property-match=ID_INPUT_KEYBOARD=1 || true
 fi

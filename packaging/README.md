@@ -13,7 +13,9 @@ Install the system files once (the user must also be in the `input` and `uinput`
 ```sh
 sudo install -m 644 packaging/udev/70-keyrift.rules /etc/udev/rules.d/ \
   && sudo install -m 644 packaging/modules-load.d/keyrift.conf /etc/modules-load.d/ \
-  && sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=input --subsystem-match=misc
+  && sudo udevadm control --reload \
+  && sudo udevadm trigger --subsystem-match=misc --sysname-match=uinput \
+  && sudo udevadm trigger --subsystem-match=input --property-match=ID_INPUT_KEYBOARD=1
 ```
 
 Then install and start the user unit: `keyrift service install`.

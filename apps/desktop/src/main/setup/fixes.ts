@@ -31,10 +31,13 @@ export function systemFixScript(username: string, dir: string): string {
     `usermod -aG input,uinput ${username}`,
     `install -m 644 '${dir}/70-keyrift.rules' /etc/udev/rules.d/70-keyrift.rules`,
     `install -m 644 '${dir}/keyrift.conf' /etc/modules-load.d/keyrift.conf`,
-    // Load uinput now (no-op if built in) and apply the rule to devices already there.
+    // Load uinput now (no-op if built in) and apply the rule to devices already there: only
+    // uinput and keyboards, since Xorg replugs every device it is triggered for, resetting mouse
+    // settings made with xinput.
     "modprobe uinput || true",
     "udevadm control --reload",
-    "udevadm trigger --subsystem-match=input --subsystem-match=misc",
+    "udevadm trigger --subsystem-match=misc --sysname-match=uinput",
+    "udevadm trigger --subsystem-match=input --property-match=ID_INPUT_KEYBOARD=1",
   ].join("\n");
 }
 
