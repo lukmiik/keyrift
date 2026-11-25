@@ -35,7 +35,7 @@ import {
 } from "./system/engine-binary.ts";
 import { ThemeControl } from "./system/theme.ts";
 import { defaultAutostartDir, HIDDEN_FLAG, TraySetting } from "./system/tray-setting.ts";
-import { fakeUpdater, UpdateControl } from "./system/updates.ts";
+import { fakeUpdater, fileLogger, UpdateControl } from "./system/updates.ts";
 import { KeyriftTray } from "./tray/tray.ts";
 
 // KEYRIFT_SOCKET points the GUI at another engine, e.g. a private test engine.
@@ -135,6 +135,8 @@ function createUpdates(): UpdateControl {
   // Only when the user asks (Settings), never on quit behind their back.
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+  // ~/.config/keyrift/logs/updater.log: without it, a failed install leaves no trace.
+  autoUpdater.logger = fileLogger(join(app.getPath("logs"), "updater.log"));
   return new UpdateControl(current, autoUpdater, "", changed);
 }
 

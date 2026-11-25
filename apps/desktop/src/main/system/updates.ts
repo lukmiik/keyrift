@@ -8,7 +8,8 @@
  * `UpdateControl` turns the updater's events into one `UpdateState` the page shows. Tests use a fake
  * updater (`fakeUpdater`), so they never reach GitHub or install anything.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 import type { UpdateInfo, UpdateState } from "../../shared/api.ts";
 
@@ -107,7 +108,10 @@ export class UpdateControl {
 function describe(error: Error, installing: boolean): string {
   const firstLine = error.message.split("\n")[0] ?? "";
   if (installing) {
-    return "Installing failed or the password prompt was closed; nothing was changed.";
+    // The real reason (e.g. pkexec's "Not authorized") is the only clue to an install that
+    // fails without a password prompt, so it is shown, not just logged.
+    const reason = firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;
+    return `Installing failed or the password prompt was closed; nothing was changed. (${reason})`;
   }
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|net::/i.test(error.message)) {
     return "Couldn't reach GitHub. Check the internet connection.";
@@ -165,4 +169,35 @@ export function fakeUpdater(path: string, current: string): Updater {
       return undefined;
     },
   } as Updater;
+}
+
+/** The logger electron-updater accepts (`autoUpdater.logger`). */
+export type UpdaterLogger = {
+  info(message?: unknown): void;
+  warn(message?: unknown): void;
+  error(message?: unknown): void;
+  debug(message: string): void;
+};
+
+/**
+ * A logger that appends to `path`, so a failed update leaves the updater's own steps and errors
+ * (e.g. the exact `pkexec` command and its output) behind. Writing never throws: a log that can't
+ * be written must not break updating.
+ */
+export function fileLogger(path: string): UpdaterLogger {
+  const write = (level: string, message: unknown) => {
+    const text = message instanceof Error ? (message.stack ?? message.message) : String(message);
+    try {
+      mkdirSync(dirname(path), { recursive: true });
+      appendFileSync(path, `${new Date().toISOString()} ${level} ${text}\n`);
+    } catch {
+      // Nowhere better to report it.
+    }
+  };
+  return {
+    info: (m) => write("INFO", m),
+    warn: (m) => write("WARN", m),
+    error: (m) => write("ERROR", m),
+    debug: (m) => write("DEBUG", m),
+  };
 }

@@ -1,9 +1,12 @@
 import { EventEmitter } from "node:events";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
 import type { UpdateInfo } from "../../shared/api.ts";
-import { type Updater, UpdateControl } from "./updates.ts";
+import { fileLogger, type Updater, UpdateControl } from "./updates.ts";
 
 /** An updater whose events the test sends itself; calls are recorded. */
 class StubUpdater extends EventEmitter {
@@ -104,7 +107,7 @@ describe("UpdateControl", () => {
       new Error("Command failed: pkexec /bin/bash -c 'dpkg -i …' (exit code 126)"),
     );
     expect(status()).toMatchObject({
-      message: expect.stringContaining("password prompt was closed"),
+      message: expect.stringMatching(/password prompt was closed.*\(Command failed: pkexec/),
     });
   });
 
@@ -112,5 +115,21 @@ describe("UpdateControl", () => {
     const control = new UpdateControl("0.1.0", null, "Development build.", () => {});
     await control.check();
     expect(control.info().state).toEqual({ status: "unavailable", reason: "Development build." });
+  });
+});
+
+describe("fileLogger", () => {
+  it("appends levelled lines, creating the log directory", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "keyrift-log-")), "logs", "updater.log");
+    const log = fileLogger(path);
+    log.info("Executing: pkexec");
+    log.error(new Error("Not authorized"));
+    const lines = readFileSync(path, "utf8").trim().split("\n");
+    expect(lines[0]).toMatch(/^\S+ INFO Executing: pkexec$/);
+    expect(lines[1]).toMatch(/^\S+ ERROR Error: Not authorized/);
+  });
+
+  it("never throws when the log can't be written", () => {
+    expect(() => fileLogger("/proc/keyrift/updater.log").info("x")).not.toThrow();
   });
 });
