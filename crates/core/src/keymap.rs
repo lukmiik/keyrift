@@ -137,6 +137,9 @@ pub struct TapHold {
     pub hold: Action,
     pub timeout: Micros,
     pub strategy: Strategy,
+    /// Typing-streak window: pressed within this long after the previous typing key press,
+    /// the key is a tap at once and is never pending (spec §5.4). `0` turns it off.
+    pub prior_idle: Micros,
 }
 
 /// How a pending tap-hold key is resolved (spec §5.4).

@@ -167,6 +167,19 @@ struct ProfileCheck<'a> {
 }
 
 impl ProfileCheck<'_> {
+    /// An optional tap-hold duration must be `1..=MAX_TIMEOUT_MS`.
+    fn check_ms(&mut self, path: &str, field: &str, value: Option<u32>) {
+        if let Some(t) = value
+            && !(1..=MAX_TIMEOUT_MS).contains(&t)
+        {
+            self.issues.push(Issue::error(
+                self.file,
+                format!("{path}.{field}"),
+                format!("must be 1..={MAX_TIMEOUT_MS}"),
+            ));
+        }
+    }
+
     fn action(&mut self, path: &str, a: &ActionConfig, slot: Slot) {
         let allowed = match slot {
             Slot::Key => true,
@@ -236,17 +249,11 @@ impl ProfileCheck<'_> {
                 tap,
                 hold,
                 timeout_ms,
+                require_prior_idle_ms,
                 ..
             } => {
-                if let Some(t) = timeout_ms
-                    && !(1..=MAX_TIMEOUT_MS).contains(t)
-                {
-                    self.issues.push(Issue::error(
-                        self.file,
-                        format!("{path}.timeoutMs"),
-                        format!("must be 1..={MAX_TIMEOUT_MS}"),
-                    ));
-                }
+                self.check_ms(path, "timeoutMs", *timeout_ms);
+                self.check_ms(path, "requirePriorIdleMs", *require_prior_idle_ms);
                 self.action(&format!("{path}.tap"), tap, Slot::Tap);
                 self.action(&format!("{path}.hold"), hold, Slot::Hold);
             }

@@ -59,11 +59,13 @@ fn action(a: &ActionConfig, p: &Profile, d: &TapHoldDefaults) -> Action {
             hold,
             timeout_ms,
             strategy,
+            require_prior_idle_ms,
         } => Action::TapHold(Box::new(TapHold {
             tap: action(tap, p, d),
             hold: action(hold, p, d),
             timeout: ms(u64::from(timeout_ms.unwrap_or(d.timeout_ms))),
             strategy: strategy.unwrap_or(d.strategy).into(),
+            prior_idle: ms(u64::from(require_prior_idle_ms.unwrap_or(0))),
         })),
         ActionConfig::Macro { steps } => Action::Macro(Arc::from(
             steps

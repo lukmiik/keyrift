@@ -375,6 +375,10 @@ pub enum ActionConfig {
         timeout_ms: Option<u32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         strategy: Option<Strategy>,
+        /// Typing streak: pressed within this many ms after the previous typing key press,
+        /// the key is a tap at once. Omit to turn it off.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        require_prior_idle_ms: Option<u32>,
     },
     /// Tap a sequence of keys.
     Macro { steps: Vec<MacroStepConfig> },

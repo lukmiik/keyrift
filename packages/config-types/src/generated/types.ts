@@ -28,6 +28,11 @@ export type ActionConfig =
     }
   | {
       hold: ActionConfig;
+      /**
+       * Typing streak: pressed within this many ms after the previous typing key press,
+       * the key is a tap at once. Omit to turn it off.
+       */
+      requirePriorIdleMs?: number | null;
       strategy?: Strategy | null;
       tap: ActionConfig;
       timeoutMs?: number | null;

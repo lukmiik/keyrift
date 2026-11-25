@@ -529,6 +529,7 @@ fn caps_tap_hold(strategy: Strategy) -> Keymap {
                 hold: Action::key(k("KEY_LEFTCTRL")),
                 timeout: ms(200),
                 strategy,
+                prior_idle: 0,
             })),
         )],
         shortcuts: vec![],
@@ -653,6 +654,7 @@ fn layer_tap_hold_activates_layer_for_buffered_keys() {
                     },
                     timeout: ms(200),
                     strategy: Strategy::PermissiveHold,
+                    prior_idle: 0,
                 })),
             ),
             Layer::new("nav").with(k("KEY_J"), Action::key(k("KEY_DOWN"))),
@@ -684,6 +686,7 @@ fn two_pending_tap_holds_resolve_in_press_order() {
             },
             timeout: ms(200),
             strategy: Strategy::PermissiveHold,
+            prior_idle: 0,
         }))
     };
     let km = Keymap {
@@ -936,4 +939,103 @@ fn key_names_round_trip() {
     }
     assert_eq!(Key::from_name("KEY_CAPSLOCK"), Some(Key::CAPSLOCK));
     assert!(Key::from_name("KEY_NOPE").is_none());
+}
+
+/// Home-row `a` (tap a, hold Super) with a 150 ms typing streak, and `s` (tap s, hold Alt) without.
+fn streak_keymap() -> Keymap {
+    let th = |tap: &str, hold: Modifier, prior_idle: u64| {
+        Action::TapHold(Box::new(TapHold {
+            tap: Action::key(k(tap)),
+            hold: Action::Key {
+                key: None,
+                mods: mods(&[hold]),
+                release_held: ModSet::EMPTY,
+            },
+            timeout: ms(200),
+            strategy: Strategy::TimeoutOnly,
+            prior_idle: ms(prior_idle),
+        }))
+    };
+    Keymap {
+        layers: vec![
+            Layer::new("base")
+                .with(k("KEY_A"), th("KEY_A", Modifier::LeftSuper, 150))
+                .with(k("KEY_S"), th("KEY_S", Modifier::LeftAlt, 0)),
+        ],
+        shortcuts: vec![],
+    }
+}
+
+#[test]
+fn typing_streak_makes_tap_hold_a_tap_on_press() {
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).tap("KEY_X").at(100).down("KEY_A");
+    assert_eq!(
+        s.take(),
+        exp(&["+KEY_X", "-KEY_X", "+KEY_A"]),
+        "no wait mid-streak"
+    );
+    // Stays a held letter, never becomes Super.
+    s.at(400).up("KEY_A");
+    assert_eq!(s.take(), exp(&["-KEY_A"]));
+    assert!(s.e.is_idle());
+}
+
+#[test]
+fn tap_hold_after_idle_waits_and_can_hold() {
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).tap("KEY_X").at(150).down("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_X", "-KEY_X"]), "window is exclusive");
+    s.at(350).tap("KEY_D").up("KEY_A");
+    assert_eq!(
+        s.take(),
+        exp(&["+KEY_LEFTMETA", "+KEY_D", "-KEY_D", "-KEY_LEFTMETA"])
+    );
+}
+
+#[test]
+fn tap_hold_without_streak_setting_ignores_typing() {
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).tap("KEY_X").at(50).down("KEY_S");
+    assert_eq!(s.take(), exp(&["+KEY_X", "-KEY_X"]));
+    s.at(250);
+    assert_eq!(s.take(), exp(&["+KEY_LEFTALT"]));
+}
+
+#[test]
+fn resolved_tap_continues_the_streak() {
+    // Fast roll from idle: `s` resolves as a tap on release, so `a` right after is mid-streak.
+    let mut s = Sim::new(streak_keymap());
+    s.at(0)
+        .down("KEY_S")
+        .at(60)
+        .up("KEY_S")
+        .at(100)
+        .down("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_S", "-KEY_S", "+KEY_A"]));
+}
+
+#[test]
+fn modifiers_and_holds_do_not_start_a_streak() {
+    // Physical Shift, then `a`: still a tap-hold (Shift+Super stays possible).
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).down("KEY_LEFTSHIFT").at(50).down("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_LEFTSHIFT"]));
+    s.at(250);
+    assert_eq!(s.take(), exp(&["+KEY_LEFTMETA"]));
+
+    // `s` held as Alt, then `a` right after: both mods.
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).down("KEY_S").at(200).at(220).down("KEY_A").at(420);
+    assert_eq!(s.take(), exp(&["+KEY_LEFTALT", "+KEY_LEFTMETA"]));
+}
+
+#[test]
+fn release_all_forgets_the_streak() {
+    let mut s = Sim::new(streak_keymap());
+    s.at(0).tap("KEY_X");
+    let mut out = Vec::new();
+    s.e.release_all(&mut out);
+    s.at(50).down("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_X", "-KEY_X"]));
 }

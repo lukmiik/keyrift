@@ -116,6 +116,9 @@ pub struct Engine {
     pending: Option<Pending>,
     buffer: VecDeque<KeyEvent>,
     macros: Vec<RunningMacro>,
+    /// Press time of the last key that typed something (a non-modifier key or a tap), for the
+    /// tap-hold typing streak.
+    last_typing_press: Option<Micros>,
     trace: bool,
 }
 
@@ -134,6 +137,7 @@ impl Engine {
             pending: None,
             buffer: VecDeque::new(),
             macros: Vec::new(),
+            last_typing_press: None,
             trace: false,
         }
     }
@@ -230,6 +234,7 @@ impl Engine {
         self.pending = None;
         self.buffer.clear();
         self.macros.clear();
+        self.last_typing_press = None;
         let had_layers = !self.layers.order.is_empty();
         self.layers = LayerState::new(self.keymap.layers.len());
         if had_layers {
@@ -285,17 +290,37 @@ impl Engine {
                 action: action.describe(&self.keymap),
             });
         }
-        if let Action::TapHold(th) = action {
-            self.pending = Some(Pending {
-                device: ev.device,
-                key: ev.key,
-                th: *th,
-                press_time: ev.time,
-            });
-            return;
-        }
+        let action = match action {
+            Action::TapHold(th) if !self.in_typing_streak(&th, ev.time) => {
+                self.pending = Some(Pending {
+                    device: ev.device,
+                    key: ev.key,
+                    th: *th,
+                    press_time: ev.time,
+                });
+                return;
+            }
+            // Mid-streak: the tap action, held like a plain key until the physical release.
+            Action::TapHold(th) => {
+                self.last_typing_press = Some(ev.time);
+                th.tap
+            }
+            Action::Key { key: Some(k), .. } if Modifier::from_key(k).is_none() => {
+                self.last_typing_press = Some(ev.time);
+                action
+            }
+            other => other,
+        };
         let active = self.activate(ev.key, &action, now, out);
         self.pressed.push((ev.device, ev.key, active));
+    }
+
+    /// Whether a tap-hold pressed at `time` falls inside its typing-streak window (spec §5.4).
+    fn in_typing_streak(&self, th: &TapHold, time: Micros) -> bool {
+        th.prior_idle > 0
+            && self
+                .last_typing_press
+                .is_some_and(|t| time.saturating_sub(t) < th.prior_idle)
     }
 
     /// Layer lookup plus shortcut matching (spec §5.2, §5.5).
@@ -468,6 +493,7 @@ impl Engine {
                 let active = self.activate(p.key, &p.th.hold, now, out);
                 self.pressed.push((p.device, p.key, active));
             } else {
+                self.last_typing_press = Some(p.press_time);
                 let active = self.activate(p.key, &p.th.tap, now, out);
                 self.deactivate(&active, out);
                 // The physical release still arrives later; it must do nothing.

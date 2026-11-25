@@ -162,6 +162,10 @@ fn semantic_errors_are_reported() {
             "must be 1..=",
         ),
         (
+            r#"{"layers":[{"id":"base","keys":{"KEY_A":{"type":"tapHold","tap":{"type":"none"},"hold":{"type":"none"},"requirePriorIdleMs":0}}}]}"#,
+            "requirePriorIdleMs: must be 1..=",
+        ),
+        (
             r#"{"shortcuts":[{"trigger":{"mods":["Ctrl","Shift"],"key":"KEY_C"},"action":{"type":"none"}},{"trigger":{"mods":["Shift","Ctrl"],"key":"KEY_C"},"action":{"type":"none"}}]}"#,
             "duplicate shortcut trigger",
         ),
@@ -309,4 +313,25 @@ fn profile_needs_a_base_layer() {
     let schema = serde_json::to_value(profile_schema()).unwrap();
     let v = jsonschema::validator_for(&schema).unwrap();
     assert!(!v.is_valid(&serde_json::json!({"version":1,"name":"x","layers":[]})));
+}
+
+#[test]
+fn require_prior_idle_compiles_per_key() {
+    let p: Profile = parse_json(
+        "p.json",
+        r#"{"layers":[{"id":"base","keys":{
+            "KEY_A":{"type":"tapHold","tap":{"type":"key","key":"KEY_A"},"hold":{"type":"mods","mods":["LeftSuper"]},"requirePriorIdleMs":150},
+            "KEY_F":{"type":"tapHold","tap":{"type":"key","key":"KEY_F"},"hold":{"type":"mods","mods":["LeftShift"]}}
+        }}]}"#,
+    )
+    .unwrap();
+    let issues = validate_profile("p.json", &p);
+    assert!(issues.is_empty(), "{issues:#?}");
+    let km = compile(&p, &Settings::default().tap_hold);
+    let prior_idle = |name| match km.layers[0].keys.get(&Key::from_name(name).unwrap()) {
+        Some(keyrift_core::Action::TapHold(th)) => th.prior_idle,
+        other => panic!("not a tap-hold: {other:?}"),
+    };
+    assert_eq!(prior_idle("KEY_A"), keyrift_core::ms(150));
+    assert_eq!(prior_idle("KEY_F"), 0);
 }
