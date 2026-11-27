@@ -61,6 +61,7 @@ fn action(a: &ActionConfig, p: &Profile, d: &TapHoldDefaults) -> Action {
             strategy,
             require_prior_idle_ms,
             opposite_hand,
+            hold_with_same_hand,
         } => Action::TapHold(Box::new(TapHold {
             tap: action(tap, p, d),
             hold: action(hold, p, d),
@@ -68,6 +69,7 @@ fn action(a: &ActionConfig, p: &Profile, d: &TapHoldDefaults) -> Action {
             strategy: strategy.unwrap_or(d.strategy).into(),
             prior_idle: ms(u64::from(require_prior_idle_ms.unwrap_or(0))),
             opposite_hand: *opposite_hand,
+            same_hand_hold: hold_with_same_hand.iter().map(|k| k.0).collect(),
         })),
         ActionConfig::Macro { steps } => Action::Macro(Arc::from(
             steps

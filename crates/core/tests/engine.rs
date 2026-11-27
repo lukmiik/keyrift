@@ -531,6 +531,7 @@ fn caps_tap_hold(strategy: Strategy) -> Keymap {
                 strategy,
                 prior_idle: 0,
                 opposite_hand: false,
+                same_hand_hold: Arc::from([]),
             })),
         )],
         shortcuts: vec![],
@@ -657,6 +658,7 @@ fn layer_tap_hold_activates_layer_for_buffered_keys() {
                     strategy: Strategy::PermissiveHold,
                     prior_idle: 0,
                     opposite_hand: false,
+                    same_hand_hold: Arc::from([]),
                 })),
             ),
             Layer::new("nav").with(k("KEY_J"), Action::key(k("KEY_DOWN"))),
@@ -690,6 +692,7 @@ fn two_pending_tap_holds_resolve_in_press_order() {
             strategy: Strategy::PermissiveHold,
             prior_idle: 0,
             opposite_hand: false,
+            same_hand_hold: Arc::from([]),
         }))
     };
     let km = Keymap {
@@ -958,6 +961,7 @@ fn streak_keymap() -> Keymap {
             strategy: Strategy::TimeoutOnly,
             prior_idle: ms(prior_idle),
             opposite_hand: false,
+            same_hand_hold: Arc::from([]),
         }))
     };
     Keymap {
@@ -1045,7 +1049,7 @@ fn release_all_forgets_the_streak() {
 }
 
 /// Home row mods with the opposite-hand rule: `a` Super, `s` Alt, `d` Ctrl, `f` Shift (left) and
-/// `j` Shift (right), all with `strategy`.
+/// `j` Shift (right), all with `strategy`. `d` may also hold with `z x c v` (one-handed Ctrl+C).
 fn opposite_hand_keymap(strategy: Strategy) -> Keymap {
     let th = |tap: &str, hold: Modifier| {
         Action::TapHold(Box::new(TapHold {
@@ -1059,6 +1063,11 @@ fn opposite_hand_keymap(strategy: Strategy) -> Keymap {
             strategy,
             prior_idle: 0,
             opposite_hand: true,
+            same_hand_hold: if tap == "KEY_D" {
+                ["KEY_Z", "KEY_X", "KEY_C", "KEY_V"].map(k).into()
+            } else {
+                Arc::from([])
+            },
         }))
     };
     let mut base = Layer::new("base");
@@ -1192,4 +1201,88 @@ fn opposite_hand_rule_is_off_by_default() {
     let mut s = Sim::new(caps_tap_hold(Strategy::HoldOnOtherPress));
     s.at(0).down("KEY_CAPSLOCK").at(40).down("KEY_A");
     assert_eq!(s.take(), exp(&["+KEY_LEFTCTRL", "+KEY_A"]));
+}
+
+#[test]
+fn slow_same_hand_home_row_roll_is_letters() {
+    // Recorded "add" that opened rofi: `a` held 216 ms with `d` down since 152 ms.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0).down("KEY_A").at(152).down("KEY_D").at(200);
+    assert_eq!(
+        s.take(),
+        Vec::<String>::new(),
+        "the timeout no longer decides"
+    );
+    assert_eq!(
+        s.e.next_deadline(),
+        None,
+        "no timer while only a key can decide"
+    );
+    s.at(216).up("KEY_A");
+    assert_eq!(s.take(), exp(&["+KEY_A", "-KEY_A"]));
+    s.at(236).up("KEY_D");
+    assert_eq!(s.take(), exp(&["+KEY_D", "-KEY_D"]));
+}
+
+#[test]
+fn held_same_hand_mods_stack_for_a_later_key() {
+    // `a` + `f` held well past the timeout, then `j`: Super+Shift+j (i3 move window).
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0).down("KEY_A").at(40).down("KEY_F").at(500);
+    assert_eq!(s.take(), Vec::<String>::new());
+    s.down("KEY_K").at(560).up("KEY_K");
+    assert_eq!(
+        s.take(),
+        exp(&["+KEY_LEFTMETA", "+KEY_LEFTSHIFT", "+KEY_K", "-KEY_K"])
+    );
+    s.at(600).up("KEY_F").up("KEY_A");
+    assert_eq!(s.take(), exp(&["-KEY_LEFTSHIFT", "-KEY_LEFTMETA"]));
+}
+
+#[test]
+fn same_hand_mod_then_same_hand_letter_is_a_roll() {
+    // a↓ d↓ w↓: three left-hand keys rolled, `w` after `a`'s timeout but before `d`'s.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0)
+        .down("KEY_A")
+        .at(50)
+        .down("KEY_D")
+        .at(230)
+        .down("KEY_W");
+    assert_eq!(
+        s.take(),
+        exp(&["+KEY_A", "-KEY_A", "+KEY_D", "-KEY_D", "+KEY_W"])
+    );
+}
+
+#[test]
+fn listed_same_hand_keys_can_hold() {
+    // One-handed Ctrl+C: `d` held, `c` tapped, then the timeout makes `d` Ctrl.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0).down("KEY_D").at(50).tap("KEY_C");
+    assert_eq!(s.take(), Vec::<String>::new());
+    s.at(200);
+    assert_eq!(s.take(), exp(&["+KEY_LEFTCTRL", "+KEY_C", "-KEY_C"]));
+    s.at(250).up("KEY_D");
+    assert_eq!(s.take(), exp(&["-KEY_LEFTCTRL"]));
+}
+
+#[test]
+fn listed_same_hand_key_roll_is_still_letters() {
+    // "dc" typed quickly: `d` released before its timeout.
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0)
+        .down("KEY_D")
+        .at(50)
+        .down("KEY_C")
+        .at(90)
+        .up("KEY_D");
+    assert_eq!(s.take(), exp(&["+KEY_D", "-KEY_D", "+KEY_C"]));
+}
+
+#[test]
+fn unlisted_same_hand_key_is_a_tap_for_ctrl() {
+    let mut s = Sim::new(opposite_hand_keymap(Strategy::TimeoutOnly));
+    s.at(0).down("KEY_D").at(50).down("KEY_W");
+    assert_eq!(s.take(), exp(&["+KEY_D", "-KEY_D", "+KEY_W"]));
 }

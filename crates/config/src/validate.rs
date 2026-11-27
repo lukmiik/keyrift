@@ -5,8 +5,8 @@ use std::{collections::HashSet, fmt};
 use serde::Serialize;
 
 use crate::model::{
-    ActionConfig, DeviceMatch, LayerMode, MacroStepConfig, Profile, Settings, TriggerModifier,
-    VERSION,
+    ActionConfig, DeviceMatch, KeyName, LayerMode, MacroStepConfig, Profile, Settings,
+    TriggerModifier, VERSION,
 };
 
 /// Maximum accepted tap-hold timeout and macro delay, in milliseconds.
@@ -167,6 +167,17 @@ struct ProfileCheck<'a> {
 }
 
 impl ProfileCheck<'_> {
+    /// `holdWithSameHand` only means something together with `oppositeHand`.
+    fn check_same_hand(&mut self, path: &str, opposite_hand: bool, keys: &[KeyName]) {
+        if !opposite_hand && !keys.is_empty() {
+            self.issues.push(Issue::warning(
+                self.file,
+                format!("{path}.holdWithSameHand"),
+                "ignored without `oppositeHand`",
+            ));
+        }
+    }
+
     /// An optional tap-hold duration must be `1..=MAX_TIMEOUT_MS`.
     fn check_ms(&mut self, path: &str, field: &str, value: Option<u32>) {
         if let Some(t) = value
@@ -250,8 +261,11 @@ impl ProfileCheck<'_> {
                 hold,
                 timeout_ms,
                 require_prior_idle_ms,
+                opposite_hand,
+                hold_with_same_hand,
                 ..
             } => {
+                self.check_same_hand(path, *opposite_hand, hold_with_same_hand);
                 self.check_ms(path, "timeoutMs", *timeout_ms);
                 self.check_ms(path, "requirePriorIdleMs", *require_prior_idle_ms);
                 self.action(&format!("{path}.tap"), tap, Slot::Tap);
@@ -279,10 +293,7 @@ impl ProfileCheck<'_> {
 }
 
 /// Canonical form of a trigger for duplicate detection.
-fn trigger_signature(
-    mods: &[TriggerModifier],
-    key: crate::KeyName,
-) -> (Vec<String>, crate::KeyName) {
+fn trigger_signature(mods: &[TriggerModifier], key: KeyName) -> (Vec<String>, KeyName) {
     let mut m: Vec<String> = mods.iter().map(|m| format!("{m:?}")).collect();
     m.sort();
     m.dedup();

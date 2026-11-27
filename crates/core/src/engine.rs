@@ -56,12 +56,25 @@ struct Pending {
     key: Key,
     th: TapHold,
     press_time: Micros,
+    /// The timeout no longer decides: a same-hand tap-hold key went down first (spec §5.4).
+    timeout_suspended: bool,
 }
 
 impl Pending {
     fn deadline(&self) -> Micros {
         self.press_time.saturating_add(self.th.timeout)
     }
+}
+
+/// What [`decide`] concluded about a pending tap-hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Decision {
+    Tap,
+    Hold,
+    /// Undecided; the timeout still applies.
+    Wait,
+    /// Undecided, and only a key event can decide now.
+    WaitWithoutTimeout,
 }
 
 #[derive(Debug)]
@@ -190,7 +203,11 @@ impl Engine {
 
     /// The next time [`Engine::tick`] must be called, if any.
     pub fn next_deadline(&self) -> Option<Micros> {
-        let p = self.pending.as_ref().map(Pending::deadline);
+        let p = self
+            .pending
+            .as_ref()
+            .filter(|p| !p.timeout_suspended)
+            .map(Pending::deadline);
         let m = self.macros.iter().map(|m| m.resume_at).min();
         match (p, m) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -297,6 +314,7 @@ impl Engine {
                     key: ev.key,
                     th: *th,
                     press_time: ev.time,
+                    timeout_suspended: false,
                 });
                 return;
             }
@@ -486,8 +504,15 @@ impl Engine {
     fn evaluate(&mut self, now: Micros, out: &mut Vec<Output>) {
         while let Some(p) = &self.pending {
             let is_tap_hold = |key| matches!(self.resolve(key), Action::TapHold(_));
-            let Some(hold) = decide(p, &self.buffer, now, is_tap_hold) else {
-                break;
+            let hold = match decide(p, &self.buffer, now, is_tap_hold) {
+                Decision::Tap => false,
+                Decision::Hold => true,
+                wait => {
+                    if let Some(p) = self.pending.as_mut() {
+                        p.timeout_suspended = wait == Decision::WaitWithoutTimeout;
+                    }
+                    break;
+                }
             };
             let Some(p) = self.pending.take() else { break };
             if hold {
@@ -547,14 +572,14 @@ impl Engine {
     }
 }
 
-/// Decide a pending tap-hold: `Some(true)` = hold, `Some(false)` = tap, `None` = undecided.
+/// Decide a pending tap-hold from the buffered events and the clock.
 /// `is_tap_hold` tells whether a key would itself be a tap-hold key right now.
 fn decide(
     p: &Pending,
     buffer: &VecDeque<KeyEvent>,
     now: Micros,
     is_tap_hold: impl Fn(Key) -> bool,
-) -> Option<bool> {
+) -> Decision {
     let deadline = p.deadline();
     let own_hand = if p.th.opposite_hand {
         p.key.hand()
@@ -562,40 +587,56 @@ fn decide(
         None
     };
     let mut pressed_after: Vec<(DeviceId, Key)> = Vec::new();
+    // A same-hand tap-hold key went down before the timeout: a roll (`a` then `d`) and two
+    // modifiers held on purpose look the same until the next key, so the timeout stops deciding.
+    let mut same_hand_mod = false;
     for ev in buffer {
-        if ev.time >= deadline {
-            return Some(true);
+        if !same_hand_mod && ev.time >= deadline {
+            return Decision::Hold;
         }
         if ev.device == p.device && ev.key == p.key {
             if !ev.pressed {
-                return Some(false);
+                return Decision::Tap;
             }
             continue;
         }
-        // Opposite-hand rule: a same-hand key means a roll, so a tap. A same-hand tap-hold key may
-        // be a second modifier held on purpose, so its press waits; releasing it means a roll.
-        if own_hand.is_some() && ev.key.hand() == own_hand {
+        // Opposite-hand rule: a same-hand key means a roll, so a tap, unless it is listed in
+        // `same_hand_hold` (e.g. Ctrl+Z…V with one hand). A same-hand tap-hold key may be a second
+        // modifier, so its press waits; releasing it means a roll.
+        if own_hand.is_some() && ev.key.hand() == own_hand && !p.th.same_hand_hold.contains(&ev.key)
+        {
             if ev.pressed {
                 if !is_tap_hold(ev.key) {
-                    return Some(false);
+                    return Decision::Tap;
                 }
                 pressed_after.push((ev.device, ev.key));
+                same_hand_mod = true;
             } else if pressed_after.contains(&(ev.device, ev.key)) {
-                return Some(false);
+                return Decision::Tap;
             }
             continue;
         }
+        // Another key after a same-hand modifier: the modifiers were held on purpose.
+        if same_hand_mod && ev.pressed {
+            return Decision::Hold;
+        }
         match p.th.strategy {
-            Strategy::HoldOnOtherPress if ev.pressed => return Some(true),
+            Strategy::HoldOnOtherPress if ev.pressed => return Decision::Hold,
             Strategy::PermissiveHold => {
                 if ev.pressed {
                     pressed_after.push((ev.device, ev.key));
                 } else if pressed_after.contains(&(ev.device, ev.key)) {
-                    return Some(true);
+                    return Decision::Hold;
                 }
             }
             _ => {}
         }
     }
-    (now >= deadline).then_some(true)
+    if same_hand_mod {
+        Decision::WaitWithoutTimeout
+    } else if now >= deadline {
+        Decision::Hold
+    } else {
+        Decision::Wait
+    }
 }

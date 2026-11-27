@@ -52,6 +52,11 @@
           "description": "Different actions for tap and hold.",
           "properties": {
             "hold": { "$ref": "#/$defs/ActionConfig" },
+            "holdWithSameHand": {
+              "description": "With `oppositeHand`: same-hand keys that may still make this a hold, e.g.\n`KEY_Z`…`KEY_V` on a left-hand Ctrl for one-handed copy and paste.",
+              "items": { "$ref": "#/$defs/KeyName" },
+              "type": "array"
+            },
             "oppositeHand": {
               "description": "Opposite-hand rule: a key on the same hand makes this a tap; only keys on the other\nhand (or on neither, like Space) can make it a hold.",
               "type": "boolean"

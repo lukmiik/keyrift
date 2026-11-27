@@ -383,6 +383,10 @@ pub enum ActionConfig {
         /// hand (or on neither, like Space) can make it a hold.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         opposite_hand: bool,
+        /// With `oppositeHand`: same-hand keys that may still make this a hold, e.g.
+        /// `KEY_Z`…`KEY_V` on a left-hand Ctrl for one-handed copy and paste.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        hold_with_same_hand: Vec<KeyName>,
     },
     /// Tap a sequence of keys.
     Macro { steps: Vec<MacroStepConfig> },

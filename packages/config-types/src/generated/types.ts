@@ -29,6 +29,11 @@ export type ActionConfig =
   | {
       hold: ActionConfig;
       /**
+       * With `oppositeHand`: same-hand keys that may still make this a hold, e.g.
+       * `KEY_Z`…`KEY_V` on a left-hand Ctrl for one-handed copy and paste.
+       */
+      holdWithSameHand?: KeyName[];
+      /**
        * Opposite-hand rule: a key on the same hand makes this a tap; only keys on the other
        * hand (or on neither, like Space) can make it a hold.
        */

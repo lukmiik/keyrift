@@ -143,6 +143,9 @@ pub struct TapHold {
     /// Opposite-hand rule: while pending, a key on the same hand makes this a tap; only keys on
     /// the other hand (or on neither) can make it a hold (spec §5.4).
     pub opposite_hand: bool,
+    /// Same-hand keys that the opposite-hand rule treats like other-hand keys (e.g. `Z X C V` on a
+    /// left-hand Ctrl, for one-handed copy and paste).
+    pub same_hand_hold: Arc<[Key]>,
 }
 
 /// How a pending tap-hold key is resolved (spec §5.4).

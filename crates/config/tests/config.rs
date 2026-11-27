@@ -353,3 +353,31 @@ fn opposite_hand_parses_compiles_and_is_omitted_when_off() {
     let json = serde_json::to_string(&p).unwrap();
     assert_eq!(json.matches("oppositeHand").count(), 1, "{json}");
 }
+
+#[test]
+fn hold_with_same_hand_compiles_and_warns_without_opposite_hand() {
+    let text = r#"{"layers":[{"id":"base","keys":{
+        "KEY_D":{"type":"tapHold","tap":{"type":"key","key":"KEY_D"},"hold":{"type":"mods","mods":["LeftCtrl"]},"oppositeHand":true,"holdWithSameHand":["KEY_Z","KEY_C"]},
+        "KEY_S":{"type":"tapHold","tap":{"type":"key","key":"KEY_S"},"hold":{"type":"mods","mods":["LeftAlt"]},"holdWithSameHand":["KEY_X"]}
+    }}]}"#;
+    let p: Profile = parse_json("p.json", text).unwrap();
+    let issues = validate_profile("p.json", &p);
+    assert_eq!(issues.len(), 1, "{issues:#?}");
+    assert_eq!(issues[0].severity, Severity::Warning);
+    assert!(
+        issues[0].to_string().contains("holdWithSameHand"),
+        "{}",
+        issues[0]
+    );
+    let km = compile(&p, &Settings::default().tap_hold);
+    match km.layers[0].keys.get(&Key::from_name("KEY_D").unwrap()) {
+        Some(keyrift_core::Action::TapHold(th)) => assert_eq!(
+            &*th.same_hand_hold,
+            &[
+                Key::from_name("KEY_Z").unwrap(),
+                Key::from_name("KEY_C").unwrap()
+            ]
+        ),
+        other => panic!("not a tap-hold: {other:?}"),
+    }
+}
